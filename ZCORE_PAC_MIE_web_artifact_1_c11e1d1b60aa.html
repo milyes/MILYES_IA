@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZCORE_PAC_MIE - Next-Gen Performance Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        zcore: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                            950: '#172554'
+                        }
+                    },
+                    animation: {
+                        'fade-up': 'fadeUp 0.6s ease-out',
+                        'float': 'float 6s ease-in-out infinite',
+                        'gradient': 'gradient 8s ease infinite',
+                    },
+                    keyframes: {
+                        fadeUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        },
+                        gradient: {
+                            '0%, 100%': { backgroundPosition: '0% 50%' },
+                            '50%': { backgroundPosition: '100% 50%' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+        .gradient-text {
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            background-size: 200% 200%;
+            animation: gradient 8s ease infinite;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .dark .glass {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glow {
+            box-shadow: 0 0 80px -20px rgba(59, 130, 246, 0.5);
+        }
+        .dark .glow {
+            box-shadow: 0 0 80px -20px rgba(59, 130, 246, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300">
+    <!-- Header -->
+    <header id="header" class="fixed top-0 w-full z-50 transition-all duration-300">
+        <nav class="glass mx-4 md:mx-8 mt-4 rounded-2xl">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <!-- Logo -->
+                    <div class="flex items-center gap-2">
+                        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-zcore-500 to-purple-600 flex items-center justify-center">
+                            <i class="fa-solid fa-microchip text-white text-lg"></i>
+                        </div>
+                        <span class="text-xl font-bold tracking-tight">ZCORE_PAC_MIE</span>
+                    </div>
+
+                    <!-- Desktop Nav -->
+                    <div class="hidden md:flex items-center gap-8">
+                        <a href="#hero" class="text-sm font-medium hover:text-zcore-500 transition-colors">Home</a>
+                        <a href="#features" class="text-sm font-medium hover:text-zcore-500 transition-colors">Features</a>
+                        <a href="#about" class="text-sm font-medium hover:text-zcore-500 transition-colors">About</a>
+                        <a href="#contact" class="text-sm font-medium hover:text-zcore-500 transition-colors">Contact</a>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex items-center gap-3">
+                        <button id="theme-toggle" aria-label="Toggle dark mode" class="w-9 h-9 rounded-lg glass flex items-center justify-center hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors">
+                            <i class="fa-solid fa-moon text-sm dark:hidden"></i>
+                            <i class="fa-solid fa-sun text-sm hidden dark:block"></i>
+                        </button>
+                        <a href="#cta" class="hidden sm:block px-4 py-2 bg-zcore-600 hover:bg-zcore-700 text-white text-sm font-medium rounded-lg transition-all hover:scale-105">
+                            Get Started
+                        </a>
+                        <button id="mobile-menu-btn" class="md:hidden w-9 h-9 rounded-lg glass flex items-center justify-center">
+                            <i class="fa-solid fa-bars text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Menu -->
+            <div id="mobile-menu" class="hidden md:hidden border-t border-slate-200/10 dark:border-slate-800 px-4 py-3 space-y-2">
+                <a href="#hero" class="block py-2 text-sm font-medium hover:text-zcore-500 transition-colors">Home</a>
+                <a href="#features" class="block py-2 text-sm font-medium hover:text-zcore-500 transition-colors">Features</a>
+                <a href="#about" class="block py-2 text-sm font-medium hover:text-zcore-500 transition-colors">About</a>
+                <a href="#contact" class="block py-2 text-sm font-medium hover:text-zcore-500 transition-colors">Contact</a>
+                <a href="#cta" class="block w-full text-center px-4 py-2 bg-zcore-600 hover:bg-zcore-700 text-white text-sm font-medium rounded-lg transition-all">
+                    Get Started
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section id="hero" class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+            <!-- Background Glow -->
+            <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-gradient-to-br from-zcore-500/20 via-purple-500/20 to-pink-500/20 rounded-full blur-3xl opacity-50 dark:opacity-30"></div>
+            
+            <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center max-w-4xl mx-auto animate-fade-up">
+                    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass text-xs font-medium mb-6">
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-zcore-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-zcore-500"></span>
+                        </span>
+                        Now in Public Beta
+                    </div>
+                    <h1 class="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 leading-tight">
+                        Performance Analytics.<br>
+                        <span class="gradient-text">Redefined.</span>
+                    </h1>
+                    <p class="text-lg md:text-xl text-slate-600 dark:text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed">
+                        ZCORE_PAC_MIE delivers real-time insights, predictive modeling, and enterprise-grade monitoring for your critical infrastructure. Built for scale.
+                    </p>
+                    <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <a href="#cta" class="w-full sm:w-auto px-8 py-4 bg-zcore-600 hover:bg-zcore-700 text-white font-medium rounded-xl transition-all hover:scale-105 glow">
+                            Start Free Trial <i class="fa-solid fa-arrow-right ml-2"></i>
+                        </a>
+                        <a href="#features" class="w-full sm:w-auto px-8 py-4 glass font-medium rounded-xl hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all">
+                            <i class="fa-solid fa-play mr-2"></i> Watch Demo
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Hero Image/Dashboard Mockup -->
+                <div class="mt-16 lg:mt-24 animate-fade-up" style="animation-delay: 0.2s">
+                    <div class="glass rounded-2xl p-2 md:p-4 glow">
+                        <div class="bg-slate-900 dark:bg-slate-950 rounded-xl overflow-hidden">
+                            <div class="flex items-center gap-2 px-4 py-3 border-b border-slate-800">
+                                <div class="flex gap-1.5">
+                                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                                </div>
+                                <div class="flex-1 text-center">
+                                    <div class="inline-block px-3 py-1 rounded-md bg-slate-800 text-slate-400 text-xs">
+                                        zcore-pac-mie.dashboard
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-6 md:p-8">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                    <div class="bg-slate-800/50 rounded-lg p-4">
+                                        <div class="text-slate-400 text-xs mb-2">System Load</div>
+                                        <div class="text-2xl font-bold text-white mb-2">24.3%</div>
+                                        <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+                                            <div class="h-full w-1/4 bg-gradient-to-r from-zcore-500 to-purple-500 rounded-full"></div>
+                                        </div>
+                                    <div class="bg-slate-800/50 rounded-lg p-4">
+                                        <div class="text-slate-400 text-xs mb-2">Response Time</div>
+                                        <div class="text-2xl font-bold text-white mb-2">48ms</div>
+                                        <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+                                            <div class="h-full w-1/2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full"></div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-slate-800/50 rounded-lg p-4">
+                                        <div class="text-slate-400 text-xs mb-2">Uptime</div>
+                                        <div class="text-2xl font-bold text-white mb-2">99.98%</div>
+                                        <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+                                            <div class="h-full w-full bg-gradient-to-r from-zcore-500 to-purple-500 rounded-full"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="bg-slate-800/50 rounded-lg p-4 h-48 flex items-end justify-between gap-2">
+                                    <div class="w-full bg-gradient-to-t from-zcore-600 to-zcore-400 rounded-t" style="height: 60%"></div>
+                                    <div class="w-full bg-gradient-to-t from-zcore-600 to-zcore-400 rounded-t" style="height: 80%"></div>
+                                    <div class="w-full bg-gradient-to-t from-zcore-600 to-zcore-400 rounded-t" style="height: 45%"></div>
+                                    <div class="w-full bg-gradient-to-t from-zcore-600 to-zcore-400 rounded-t" style="height: 90%"></div>
+                                    <div class="w-full bg-gradient-to-t from-purple-600 to-purple-400 rounded-t animate-float" style="height: 100%"></div>
+                                    <div class="w-full bg-gradient-to-t from-zcore-600 to-zcore-400 rounded-t" style="height: 70%"></div>
+                                    <div class="w-full bg-gradient-to-t from-zcore-600 to-zcore-400 rounded-t" style="height: 85%"></div>
+                                    <div class="w-full bg-gradient-to-t from-zcore-600 to-zcore-400 rounded-t" style="height: 55%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Social Proof -->
+                <div class="mt-16 text-center">
+                    <p class="text-sm text-slate-500 dark:text-slate-500 mb-6">Trusted by teams at</p>
+                    <div class="flex flex-wrap justify-center items-center gap-8 md:gap-12 opacity-50 dark:opacity-40">
+                        <div class="text-xl font-bold tracking-tight">ACME Corp</div>
+                        <div class="text-xl font-bold tracking-tight">NovaTech</div>
+                        <div class="text-xl font-bold tracking-tight">Globex</div>
+                        <div class="text-xl font-bold tracking-tight">Initech</div>
+                        <div class="text-xl font-bold tracking-tight">Umbrella</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section id="features" class="py-20 lg:py-32 relative">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center max-w-3xl mx-auto mb-16">
+                    <h2 class="text-3xl md:text-5xl font-bold tracking-tight mb-4">
+                        Everything you need to <span class="gradient-text">monitor at scale</span>
+                    </h2>
+                    <p class="text-lg text-slate-600 dark:text-slate-400">
+                        ZCORE_PAC_MIE combines powerful analytics with an intuitive interface. Get actionable insights in seconds, not hours.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+                    <!-- Feature 1 -->
+                    <div class="glass rounded-2xl p-6 lg:p-8 hover:scale-105 transition-all duration-300 group">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-zcore-500 to-zcore-600 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-bolt text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3">Real-time Processing</h3>
+                        <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+                            Stream millions of events per second with sub-millisecond latency. No sampling, no aggregation delays.
+                        </p>
+                    </div>
+
+                    <!-- Feature 2 -->
+                    <div class="glass rounded-2xl p-6 lg:p-8 hover:scale-105 transition-all duration-300 group">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-brain text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3">Predictive AI</h3>
+                        <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+                            Machine learning models forecast anomalies before they impact users. Proactive alerts, zero downtime.
+                        </p>
+                    </div>
+
+                    <!-- Feature 3 -->
+                    <div class="glass rounded-2xl p-6 lg:p-8 hover:scale-105 transition-all duration-300 group">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-shield-halved text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3">Enterprise Security</h3>
+                        <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+                            SOC 2 Type II, GDPR compliant, and end-to-end encrypted. Your data never leaves your VPC.
+                        </p>
+                    </div>
+
+                    <!-- Feature 4 -->
+                    <div class="glass rounded-2xl p-6 lg:p-8 hover:scale-105 transition-all duration-300 group">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-code-branch text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3">Open Integration</h3>
+                        <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+                            200+ integrations out of the box. REST API, GraphQL, webhooks, and SDKs for every major language.
+                        </p>
+                    </div>
+
+                    <!-- Feature 5 -->
+                    <div class="glass rounded-2xl p-6 lg:p-8 hover:scale-105 transition-all duration-300 group">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-chart-line text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3">Custom Dashboards</h3>
+                        <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+                            Drag-and-drop builder with 50+ visualization types. Share dashboards with your team or customers.
+                        </p>
+                    </div>
+
+                    <!-- Feature 6 -->
+                    <div class="glass rounded-2xl p-6 lg:p-8 hover:scale-105 transition-all duration-300 group">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-headset text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3">24/7 Support</h3>
+                        <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+                            Dedicated engineers and 99.9% SLA. Average response time under 5 minutes for critical issues.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- About/Stats Section -->
+        <section id="about" class="py-20 lg:py-32">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="glass rounded-3xl p-8 md:p-12 lg:p-16">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                        <div>
+                            <h2 class="text-3xl md:text-4xl font-bold tracking-tight mb-6">
+                                Built for teams that <span class="gradient-text">ship fast</span>
+                            </h2>
+                            <p class="text-lg text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
+                                ZCORE_PAC_MIE was created by engineers who were tired of slow, expensive monitoring tools. We process over 10 trillion data points daily for customers worldwide.
+                            </p>
+                            <p class="text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
+                                From startups to Fortune 500s, teams trust us to keep their services online and performant. No credit card required to start.
+                            </p>
+                            <a href="#contact" class="inline-flex items-center text-zcore-600 dark:text-zcore-400 font-medium hover:gap-3 gap-2 transition-all">
+                                Learn more about our mission <i class="fa-solid fa-arrow-right text-sm"></i>
+                            </a>
+                        </div>
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="text-center p-6 rounded-xl bg-slate-100 dark:bg-slate-800/50">
+                                <div class="text-4xl md:text-5xl font-bold gradient-text mb-2">10T+</div>
+                                <div class="text-sm text-slate-600 dark:text-slate-400">Events/day</div>
+                            </div>
+                            <div class="text-center p-6 rounded-xl bg-slate-100 dark:bg-slate-800/50">
+                                <div class="text-4xl md:text-5xl font-bold gradient-text mb-2">99.99%</div>
+                                <div class="text-sm text-slate-600 dark:text-slate-400">Uptime SLA</div>
+                            </div>
+                            <div class="text-center p-6 rounded-xl bg-slate-100 dark:bg-slate-800/50">
+                                <div class="text-4xl md:text-5xl font-bold gradient-text mb-2">5ms</div>
+                                <div class="text-sm text-slate-600 dark:text-slate-400">Query Latency</div>
+                            </div>
+                            <div class="text-center p-6 rounded-xl bg-slate-100 dark:bg-slate-800/50">
+                                <div class="text-4xl md:text-5xl font-bold gradient-text mb-2">500+</div>
+                                <div class="text-sm text-slate-600 dark:text-slate-400">Customers</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section id="cta" class="py-20 lg:py-32">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <div class="glass rounded-3xl p-8 md:p-12 lg:p-16 glow">
+                    <h2 class="text-3xl md:text-5xl font-bold tracking-tight mb-6">
+                        Ready to get started?
+                    </h2>
+                    <p class="text-lg text-slate-600 dark:text-slate-400 mb-10 max-w-2xl mx-auto">
+                        Join 500+ engineering teams using ZCORE_PAC_MIE to ship faster and sleep better. Start your free 14-day trial today.
+                    </p>
+                    <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+                        <a href="#" class="w-full sm:w-auto px-8 py-4 bg-zcore-600 hover:bg-zcore-700 text-white font-medium rounded-xl transition-all hover:scale-105">
+                            Start Free Trial <i class="fa-solid fa-arrow-right ml-2"></i>
+                        </a>
+                        <a href="#contact" class="w-full sm:w-auto px-8 py-4 glass font-medium rounded-xl hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all">
+                            Talk to Sales
+                        </a>
+                    </div>
+                    <p class="text-sm text-slate-500 dark:text-slate-500">
+                        No credit card required · 14-day free trial · Cancel anytime
+                    </p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer id="contact" class="border-t border-slate-200 dark:border-slate-800 mt-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
+                <!-- Brand -->
+                <div class="col-span-2 lg:col-span-2">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-zcore-500 to-purple-600 flex items-center justify-center">
+                            <i class="fa-solid fa-microchip text-white text-lg"></i>
+                        </div>
+                        <span class="text-xl font-bold tracking-tight">ZCORE_PAC_MIE</span>
+                    </div>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 mb-6 max-w-xs">
+                        Next-generation performance analytics for modern engineering teams.
+                    </p>
+                    <div class="flex gap-4">
+                        <a href="#" aria-label="Twitter" class="w-9 h-9 rounded-lg glass flex items-center justify-center hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors">
+                            <i class="fa-brands fa-x-twitter text-sm"></i>
+                        </a>
+                        <a href="#" aria-label="GitHub" class="w-9 h-9 rounded-lg glass flex items-center justify-center hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors">
+                            <i class="fa-brands fa-github text-sm"></i>
+                        </a>
+                        <a href="#" aria-label="LinkedIn" class="w-9 h-9 rounded-lg glass flex items-center justify-center hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors">
+                            <i class="fa-brands fa-linkedin text-sm"></i>
+                        </a>
+                        <a href="#" aria-label="Discord" class="w-9 h-9 rounded-lg glass flex items-center justify-center hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors">
+                            <i class="fa-brands fa-discord text-sm"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Product -->
+                <div>
+                    <h4 class="font-semibold mb-4 text-sm">Product</h4>
+                    <ul class="space-y-3 text-sm text-slate-600 dark:text-slate-400">
+                        <li><a href="#features" class="hover:text-zcore-500 transition-colors">Features</a></li>
+                        <li><a href="#" class="hover:text-zcore-500 transition-colors">Pricing</a></li>
+                        <li><a href="#" class="hover:text-zcore-500 transition-colors">Integrations</a></li>
+                        <li><a href="#" class="hover:text-zcore-500 transition-colors">Changelog</a></li>
+                    </ul>
+                </div>
+
+                <!-- Company -->
+                <div>
+                    <h4 class="font-semibold mb-4 text-sm">Company</h4>
+                    <ul class="space-y-3 text-sm text-slate-600 dark:text-slate-400">
+                        <li><a href="#about" class="hover:text-zcore-500 transition-colors">About</a></li>
+                        <li><a href="#" class="hover:text-zcore-500 transition-colors">Blog</a></li>
+                        <li><a href="#" class="hover:text-zcore-500 transition-colors">Careers</a></li>
+                        <li><a href="#contact" class="hover:text-zcore-500 transition-colors">Contact</a></li>
+                    </ul>
+                </div>
+
+                <!-- Resources -->
+                <div>
+                    <h4 class="font-semibold mb-4 text-sm">Resources</h4>
+                    <ul class="space-y-3 text-sm text-slate-600 dark:text-slate-400">
+                        <li><a href="#" class="hover:text-zcore-500 transition-colors">Documentation</a></li>
+                        <li><a href="#" class="hover:text-zcore-500 transition-colors">API Reference</a></li>
+                        <li><a href="#" class="hover:text-zcore-500 transition-colors">Status</a></li>
+                        <li><a href="#" class="hover:text-zcore-500 transition-colors">Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Bottom -->
+            <div class="pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-slate-500 dark:text-slate-500">
+                <p>© 2024 ZCORE_PAC_MIE. All rights reserved.</p>
+                <div class="flex gap-6">
+                    <a href="#" class="hover:text-zcore-500 transition-colors">Privacy Policy</a>
+                    <a href="#" class="hover:text-zcore-500 transition-colors">Terms of Service</a>
+                    <a href="#" class="hover:text-zcore-500 transition-colors">Cookie Policy</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Dark mode toggle with localStorage
+        const themeToggle = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+        
+        // Check for saved theme preference or default to system preference
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            html.classList.add('dark');
+        } else {
+            html.classList.remove('dark');
+        }
+
+        themeToggle.addEventListener('click', () => {
+            html.classList.toggle('dark');
+            localStorage.theme = html.classList.contains('dark') ? 'dark' : 'light';
+        });
+
+        // Mobile menu toggle
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        
+        mobileMenuBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+            const icon = mobileMenuBtn.querySelector('i');
+            icon.classList.toggle('fa-bars');
+            icon.classList.toggle('fa-xmark');
+        });
+
+        // Close mobile menu when clicking a link
+        mobileMenu.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                mobileMenu.classList.add('hidden');
+                mobileMenuBtn.querySelector('i').classList.remove('fa-xmark');
+                mobileMenuBtn.querySelector('i').classList.add('fa-bars');
+            });
+        });
+
+        // Header scroll effect
+        const header = document.getElementById('header');
+        let lastScroll = 0;
+
+        window.addEventListener('scroll', () => {
+            const currentScroll = window.pageYOffset;
+            
+            if (currentScroll > 50) {
+                header.style.transform = currentScroll > lastScroll ? 'translateY(-100%)' : 'translateY(0)';
+            } else {
+                header.style.transform = 'translateY(0)';
+            }
+            
+            lastScroll = currentScroll;
+        });
+
+        // Intersection Observer for fade-in animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Apply to feature cards
+        document.querySelectorAll('#features .glass').forEach((el, index) => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = `opacity 0.6s ease ${index * 0.1}s, transform 0.6s ease ${index * 0.1}s`;
+            observer.observe(el);
+        });
+    </script>
+</body>
+</html>
