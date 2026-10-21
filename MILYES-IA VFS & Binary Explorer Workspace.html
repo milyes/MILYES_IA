@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MILYES-IA // VFS_BIN.HTML [CORE-20.6]</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&display=swap');
+
+        :root {
+            --terminal-green: #00ff66;
+            --terminal-cyan: #00f0ff;
+            --terminal-amber: #ffb703;
+            --terminal-red: #ff3366;
+            --bg-void: #05080d;
+            --bg-panel: #0a0f18;
+            --bg-elevated: #0f1726;
+            --border-glow: rgba(0, 240, 255, 0.25);
+        }
+
+        body {
+            font-family: 'Fira Code', monospace;
+            background-color: var(--bg-void);
+            color: #d1d5db;
+            overflow-x: hidden;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Scanline Overlay */
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 3px, 6px 100%;
+            z-index: 999;
+            opacity: 0.65;
+            transition: opacity 0.3s;
+        }
+
+        .scanlines.disabled {
+            display: none;
+        }
+
+        /* CRT Screen curve and subtle vignette */
+        .crt-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            box-shadow: inset 0 0 100px rgba(0,0,0,0.85);
+            z-index: 998;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090e17;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 2px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00f0ff88;
+        }
+
+        /* Glow effects */
+        .neon-cyan-glow {
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+        }
+        .neon-green-glow {
+            text-shadow: 0 0 8px rgba(0, 255, 102, 0.6);
+        }
+        .box-glow-cyan {
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.15);
+        }
+
+        .hex-byte:hover {
+            background-color: rgba(0, 240, 255, 0.25);
+            color: #ffffff;
+            cursor: pointer;
+        }
+        .hex-byte.selected {
+            background-color: rgba(0, 255, 102, 0.4);
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        /* Typing indicator cursor */
+        .cursor-blink {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: var(--terminal-green);
+            animation: blink 1s step-start infinite;
+            vertical-align: sub;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col select-none antialiased">
+    <div id="scanline-layer" class="scanlines"></div>
+    <div class="crt-overlay"></div>
+
+    <!-- TOP SYSTEM STATUS BAR -->
+    <header class="bg-[#080d14] border-b border-cyan-900/50 px-4 py-2.5 flex items-center justify-between text-xs tracking-wider z-20">
+        <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="font-orbitron font-bold text-cyan-400 text-sm tracking-widest neon-cyan-glow">MILYES-IA</span>
+            </div>
+            <span class="text-zinc-600">|</span>
+            <span class="text-zinc-400 hidden sm:inline">AGENT: <span class="text-emerald-400 font-semibold">GEMINI-CORE-20.6</span></span>
+            <span class="text-zinc-600 hidden md:inline">|</span>
+            <span class="text-zinc-500 hidden md:inline">NODE: <span class="text-zinc-300">NSP-LAW-AI-9942</span></span>
+        </div>
+
+        <!-- Telemetry Pill / Stats -->
+        <div class="flex items-center space-x-4">
+            <div class="hidden lg:flex items-center space-x-2 bg-slate-900/80 px-2 py-1 rounded border border-slate-800">
+                <span class="text-slate-400 text-[10px]">API QUOTA</span>
+                <div class="w-20 bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div id="quota-bar" class="bg-gradient-to-r from-emerald-500 to-cyan-400 h-full w-[84%] transition-all duration-500"></div>
+                </div>
+                <span id="quota-val" class="text-cyan-300 text-[10px] font-mono">84%</span>
+            </div>
+
+            <div class="hidden sm:flex items-center space-x-2 text-zinc-400 text-[11px]">
+                <i data-lucide="cpu" class="w-3.5 h-3.5 text-cyan-400"></i>
+                <span id="cpu-load">12%</span>
+            </div>
+
+            <div class="hidden sm:flex items-center space-x-2 text-zinc-400 text-[11px]">
+                <i data-lucide="activity" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span id="uptime-clock">00:14:28</span>
+            </div>
+
+            <!-- Audio & CRT Toggles -->
+            <div class="flex items-center space-x-1 border-l border-slate-800 pl-3">
+                <button id="toggle-audio-btn" onclick="toggleAudio()" title="Toggle Sound FX" class="p-1.5 rounded hover:bg-slate-800 text-zinc-400 hover:text-cyan-400 transition">
+                    <i data-lucide="volume-2" id="audio-icon" class="w-4 h-4"></i>
+                </button>
+                <button onclick="toggleScanlines()" title="Toggle CRT Scanlines" class="p-1.5 rounded hover:bg-slate-800 text-zinc-400 hover:text-cyan-400 transition">
+                    <i data-lucide="tv" class="w-4 h-4"></i>
+                </button>
+                <button onclick="resetWorkspace()" title="Reboot Session" class="p-1.5 rounded hover:bg-rose-950/40 text-zinc-400 hover:text-rose-400 transition">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- NAVIGATION TABS -->
+    <nav class="bg-[#0b121e] border-b border-slate-800 px-4 py-1.5 flex items-center justify-between text-xs z-10">
+        <div class="flex space-x-1 sm:space-x-2">
+            <button onclick="switchView('terminal')" id="tab-terminal" class="view-tab flex items-center space-x-2 px-3 py-1.5 rounded font-medium transition text-emerald-400 bg-emerald-950/30 border border-emerald-500/30">
+                <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+                <span>CONSOLE CORE</span>
+            </button>
+            <button onclick="switchView('vfs')" id="tab-vfs" class="view-tab flex items-center space-x-2 px-3 py-1.5 rounded font-medium transition text-zinc-400 hover:text-cyan-300 hover:bg-slate-800/40 border border-transparent">
+                <i data-lucide="folder-tree" class="w-3.5 h-3.5"></i>
+                <span>VFS EXPLORER</span>
+            </button>
+            <button onclick="switchView('hex')" id="tab-hex" class="view-tab flex items-center space-x-2 px-3 py-1.5 rounded font-medium transition text-zinc-400 hover:text-cyan-300 hover:bg-slate-800/40 border border-transparent">
+                <i data-lucide="binary" class="w-3.5 h-3.5"></i>
+                <span>BIN / HEX VIEWER</span>
+            </button>
+            <button onclick="switchView('split')" id="tab-split" class="view-tab hidden md:flex items-center space-x-2 px-3 py-1.5 rounded font-medium transition text-zinc-400 hover:text-cyan-300 hover:bg-slate-800/40 border border-transparent">
+                <i data-lucide="columns-2" class="w-3.5 h-3.5"></i>
+                <span>SPLIT DECK</span>
+            </button>
+        </div>
+
+        <div class="flex items-center space-x-2 text-[11px] text-zinc-400 font-mono">
+            <span class="text-zinc-600 hidden sm:inline">VFS_ROOT:</span>
+            <span id="current-pwd-badge" class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-cyan-300">/home/milyes</span>
+        </div>
+    </nav>
+
+    <!-- MAIN INTERFACE BODY -->
+    <main class="flex-1 relative overflow-hidden bg-[#070b12] text-sm">
+
+        <!-- ==================== VIEW 1: TERMINAL CONSOLE ==================== -->
+        <div id="view-terminal" class="w-full h-full flex flex-col p-3 overflow-hidden">
+            <div id="terminal-scroll-area" class="flex-1 overflow-y-auto space-y-1.5 p-3 rounded-lg bg-black/50 border border-cyan-950/60 font-mono text-[13px] leading-relaxed select-text">
+                <!-- Terminal Initial Feed / Log -->
+                <div class="text-zinc-500 pb-2 border-b border-zinc-800/70 text-[12px]">
+                    <pre class="text-cyan-400 font-bold leading-none hidden sm:block">
+ ███╗   ███╗██╗██╗     ██╗   ██╗███████╗███████╗    ██╗██████╗ 
+ ████╗ ████║██║██║     ██║   ██║██╔════╝██╔════╝    ██║██╔══██╗
+ ██╔████╔██║██║██║     ╚██╗ ██╔╝█████╗  ███████╗    ██║██╔══██╗
+ ██║╚██╔╝██║██║██║      ╚████╔╝ ██╔══╝  ╚════██║    ██║██╔══██╗
+ ██║ ╚═╝ ██║██║███████╗  ╚██╔╝  ███████╗███████║    ██║██║  ██║
+ ╚═╝     ╚═╝╚═╝╚══════╝   ╚═╝   ╚══════╝╚══════╝    ╚═╝╚═╝  ╚═╝
+                    </pre>
+                    <div class="mt-2 text-emerald-400 font-semibold">[SUPER ÉMULATEUR INTERACTIF IA - CORE v20.6 RESTORED]</div>
+                    <div class="text-zinc-400 mt-1">Session /home/milyes initialisée. Erreurs de quota (429) purgées via GEMINI-CORE-20.6.</div>
+                    <div class="text-cyan-400/80 mt-1">Astuce : Tapez <span class="text-yellow-300 font-bold">help</span>, <span class="text-yellow-300 font-bold">ls</span>, <span class="text-yellow-300 font-bold">hex /bin/cyber_payload.elf</span> ou cliquez sur les fichiers dans le VFS.</div>
+                </div>
+
+                <!-- Dynamic Output Container -->
+                <div id="terminal-output" class="space-y-1 text-slate-300"></div>
+
+                <!-- Input Prompt Line inside scroll area -->
+                <div class="flex items-center space-x-2 pt-2 text-emerald-400">
+                    <span class="font-bold flex-shrink-0 text-cyan-400" id="prompt-label">milyes@core20.6:<span id="prompt-pwd">~</span>$</span>
+                    <input type="text" id="terminal-input" autocomplete="off" spellcheck="false" class="flex-1 bg-transparent text-emerald-300 outline-none border-none font-mono focus:ring-0 text-[13px] p-0" autofocus>
+                </div>
+            </div>
+
+            <!-- Quick Action Toolbar at the bottom of Terminal -->
+            <div class="mt-2 flex flex-wrap gap-1.5 pt-1 text-[11px]">
+                <button onclick="execQuickCmd('help')" class="px-2.5 py-1 bg-slate-900 hover:bg-cyan-950 text-cyan-400 border border-cyan-900/60 rounded">help</button>
+                <button onclick="execQuickCmd('ls -la')" class="px-2.5 py-1 bg-slate-900 hover:bg-cyan-950 text-cyan-400 border border-cyan-900/60 rounded">ls -la</button>
+                <button onclick="execQuickCmd('cat /var/log/syslog.log')" class="px-2.5 py-1 bg-slate-900 hover:bg-cyan-950 text-emerald-400 border border-emerald-900/60 rounded">cat syslog</button>
+                <button onclick="execQuickCmd('hex /bin/cyber_payload.elf')" class="px-2.5 py-1 bg-slate-900 hover:bg-cyan-950 text-amber-300 border border-amber-900/60 rounded">hex payload</button>
+                <button onclick="execQuickCmd('sysinfo')" class="px-2.5 py-1 bg-slate-900 hover:bg-cyan-950 text-cyan-400 border border-cyan-900/60 rounded">sysinfo</button>
+                <button onclick="execQuickCmd('scan')" class="px-2.5 py-1 bg-slate-900 hover:bg-cyan-950 text-cyan-400 border border-cyan-900/60 rounded">net scan</button>
+                <button onclick="execQuickCmd('decrypt /home/milyes/classified.enc')" class="px-2.5 py-1 bg-slate-900 hover:bg-cyan-950 text-rose-400 border border-rose-900/60 rounded">decrypt enc</button>
+                <button onclick="execQuickCmd('clear')" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-zinc-400 border border-slate-700/60 rounded ml-auto">clear</button>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW 2: VFS FILE MANAGER ==================== -->
+        <div id="view-vfs" class="w-full h-full p-3 hidden flex flex-col md:flex-row gap-3 overflow-hidden">
+            <!-- Sidebar: Directory Tree Hierarchy -->
+            <div class="w-full md:w-1/3 lg:w-1/4 bg-[#0a0f1a] border border-cyan-950/70 rounded-lg flex flex-col overflow-hidden">
+                <div class="px-3 py-2 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between text-xs font-semibold text-cyan-400">
+                    <span class="flex items-center space-x-2">
+                        <i data-lucide="folder-tree" class="w-3.5 h-3.5"></i>
+                        <span>DIRECTORY TREE</span>
+                    </span>
+                    <button onclick="renderVfsTree()" class="hover:text-white" title="Refresh tree"><i data-lucide="refresh-cw" class="w-3 h-3"></i></button>
+                </div>
+                <div id="vfs-tree-container" class="p-2 overflow-y-auto flex-1 font-mono text-xs space-y-1"></div>
+            </div>
+
+            <!-- Content Area: File Explorer & File Preview -->
+            <div class="flex-1 bg-[#0a0f1a] border border-cyan-950/70 rounded-lg flex flex-col overflow-hidden">
+                <!-- Header with breadcrumbs & controls -->
+                <div class="px-3 py-2 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between text-xs">
+                    <div class="flex items-center space-x-2 text-zinc-300">
+                        <i data-lucide="folder" class="w-4 h-4 text-amber-400"></i>
+                        <span id="vfs-current-path" class="font-bold font-mono text-cyan-300">/home/milyes</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="createItemDialog('file')" class="px-2 py-1 bg-slate-800 hover:bg-cyan-900 text-cyan-300 rounded border border-cyan-800 text-[11px] flex items-center space-x-1">
+                            <i data-lucide="file-plus" class="w-3 h-3"></i>
+                            <span>+ File</span>
+                        </button>
+                        <button onclick="createItemDialog('dir')" class="px-2 py-1 bg-slate-800 hover:bg-amber-900 text-amber-300 rounded border border-amber-800 text-[11px] flex items-center space-x-1">
+                            <i data-lucide="folder-plus" class="w-3 h-3"></i>
+                            <span>+ Dir</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Files Table List -->
+                <div class="flex-1 overflow-y-auto p-3">
+                    <table class="w-full text-left font-mono text-xs">
+                        <thead>
+                            <tr class="text-zinc-500 border-b border-slate-800 text-[11px]">
+                                <th class="pb-2">NAME</th>
+                                <th class="pb-2">PERMS</th>
+                                <th class="pb-2">SIZE</th>
+                                <th class="pb-2">MODIFIED</th>
+                                <th class="pb-2 text-right">ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vfs-file-list" class="divide-y divide-slate-900">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Quick Preview footer pane -->
+                <div id="vfs-quick-preview-panel" class="h-44 border-t border-slate-800/80 bg-slate-950/90 p-3 flex flex-col hidden">
+                    <div class="flex items-center justify-between text-xs pb-1 mb-2 border-b border-slate-800">
+                        <span class="text-cyan-400 font-bold" id="vfs-preview-filename">File Preview</span>
+                        <div class="flex items-center space-x-2">
+                            <button id="vfs-preview-hex-btn" class="text-amber-400 hover:underline text-[11px]">Open in Hex</button>
+                            <button onclick="closeVfsPreview()" class="text-zinc-500 hover:text-zinc-300"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                        </div>
+                    </div>
+                    <pre id="vfs-preview-content" class="flex-1 overflow-auto text-xs text-zinc-300 font-mono whitespace-pre-wrap select-text"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW 3: HEX & BINARY VIEWER ==================== -->
+        <div id="view-hex" class="w-full h-full p-3 hidden flex flex-col overflow-hidden">
+            <div class="bg-[#090e18] border border-cyan-900/60 rounded-lg flex-1 flex flex-col overflow-hidden">
+                <!-- Hex Header Toolbar -->
+                <div class="px-4 py-2.5 bg-slate-900/90 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div class="flex items-center space-x-3">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="binary" class="w-4 h-4 text-cyan-400"></i>
+                            <span class="font-bold text-slate-200">ACTIVE BUFFER:</span>
+                            <span id="hex-active-filename" class="font-mono text-emerald-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">/bin/cyber_payload.elf</span>
+                        </div>
+                        <span id="hex-filesize-badge" class="text-zinc-500 text-[11px]">[128 BYTES]</span>
+                    </div>
+
+                    <!-- Search / Inspector tools -->
+                    <div class="flex items-center space-x-3">
+                        <div class="flex items-center space-x-1 bg-black/40 px-2 py-1 rounded border border-slate-800">
+                            <i data-lucide="search" class="w-3 h-3 text-zinc-400"></i>
+                            <input type="text" id="hex-search-input" placeholder="Search ASCII / Hex..." oninput="searchHexContent()" class="bg-transparent text-xs text-cyan-300 focus:outline-none w-28 sm:w-44">
+                        </div>
+                        <select id="hex-file-selector" onchange="loadHexFile(this.value)" class="bg-slate-800 text-xs text-zinc-300 border border-slate-700 rounded px-2 py-1 focus:outline-none">
+                            <option value="/bin/cyber_payload.elf">/bin/cyber_payload.elf</option>
+                            <option value="/home/milyes/classified.enc">/home/milyes/classified.enc</option>
+                            <option value="/sys/kernel_dump.dmp">/sys/kernel_dump.dmp</option>
+                            <option value="/var/log/syslog.log">/var/log/syslog.log</option>
+                            <option value="/home/milyes/notes.txt">/home/milyes/notes.txt</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Hex Table Columns Header -->
+                <div class="px-4 py-1.5 bg-[#0d1424] text-[11px] font-mono text-zinc-500 border-b border-slate-800 grid grid-cols-12 gap-2">
+                    <div class="col-span-2 text-cyan-500 font-semibold">OFFSET</div>
+                    <div class="col-span-6 tracking-widest text-slate-400 font-medium hidden sm:block">00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F</div>
+                    <div class="col-span-4 text-emerald-500 font-semibold">ASCII DECODE</div>
+                </div>
+
+                <!-- Main Hex Grid Container -->
+                <div id="hex-container" class="flex-1 overflow-y-auto p-4 font-mono text-[13px] leading-6 space-y-1 select-text">
+                    <!-- Populated dynamically via renderHexViewer() -->
+                </div>
+
+                <!-- Hex Status & Byte Inspector Footer -->
+                <div class="px-4 py-2 bg-slate-900 border-t border-slate-800 flex items-center justify-between text-xs text-zinc-400 font-mono">
+                    <div class="flex items-center space-x-4">
+                        <span>Selected Offset: <span id="insp-offset" class="text-cyan-300 font-bold">0x00000000</span></span>
+                        <span>Hex: <span id="insp-hex" class="text-amber-400 font-bold">7F</span></span>
+                        <span>Dec: <span id="insp-dec" class="text-emerald-400 font-bold">127</span></span>
+                        <span>Binary: <span id="insp-bin" class="text-purple-400 font-bold hidden sm:inline">01111111</span></span>
+                    </div>
+                    <button onclick="editByteModal()" class="px-2 py-0.5 bg-cyan-950/60 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 rounded text-[11px]">
+                        Edit Byte
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW 4: SPLIT DECK (TERMINAL + HEX/VFS) ==================== -->
+        <div id="view-split" class="w-full h-full p-2 hidden grid grid-cols-1 md:grid-cols-2 gap-2 overflow-hidden">
+            <!-- Left: Terminal Mirror -->
+            <div class="border border-cyan-950/70 rounded-lg flex flex-col bg-black/40 overflow-hidden">
+                <div class="bg-slate-900 px-3 py-1.5 text-xs text-cyan-400 border-b border-slate-800 flex justify-between">
+                    <span class="font-bold flex items-center space-x-1"><i data-lucide="terminal" class="w-3.5 h-3.5 mr-1"></i>TERMINAL DECK</span>
+                    <span class="text-emerald-400">ONLINE</span>
+                </div>
+                <div id="split-terminal-content" class="flex-1 p-2 font-mono text-xs overflow-y-auto text-zinc-300 space-y-1">
+                    <div class="text-zinc-500">[Connected to Core-20.6 Shell Mirror]</div>
+                    <div class="text-cyan-400">Tapez 'help' ou naviguez dans l'arborescence VFS à droite.</div>
+                </div>
+                <div class="p-2 border-t border-slate-800 bg-slate-950 flex items-center space-x-2">
+                    <span class="text-emerald-400 font-mono text-xs">$</span>
+                    <input type="text" id="split-terminal-input" placeholder="Enter command..." class="w-full bg-transparent text-xs text-emerald-300 focus:outline-none font-mono">
+                </div>
+            </div>
+
+            <!-- Right: Quick Hex Deck -->
+            <div class="border border-cyan-950/70 rounded-lg flex flex-col bg-black/40 overflow-hidden">
+                <div class="bg-slate-900 px-3 py-1.5 text-xs text-amber-400 border-b border-slate-800 flex justify-between">
+                    <span class="font-bold flex items-center space-x-1"><i data-lucide="binary" class="w-3.5 h-3.5 mr-1"></i>STREAM MONITOR / RAW BYTES</span>
+                    <span class="text-cyan-400" id="split-hex-title">payload.elf</span>
+                </div>
+                <div id="split-hex-content" class="flex-1 p-2 font-mono text-[11px] overflow-y-auto leading-relaxed text-zinc-400">
+                    <!-- Cloned hex overview -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- GENERIC MODAL / DIALOG -->
+    <div id="system-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-[#0b121f] border border-cyan-500/50 rounded-lg shadow-2xl w-full max-w-md p-4 text-xs font-mono space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <div class="flex items-center space-x-2 text-cyan-400 font-bold text-sm" id="modal-title">
+                    <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                    <span>SYSTEM PROMPT</span>
+                </div>
+                <button onclick="closeModal()" class="text-zinc-500 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div id="modal-body" class="space-y-2 text-zinc-300">
+                <!-- Injected dialog contents -->
+            </div>
+            <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800" id="modal-actions">
+                <button onclick="closeModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-zinc-300 rounded">Cancel</button>
+                <button id="modal-confirm-btn" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded font-bold">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUDIO SYNTH (Web Audio API) -->
+    <script>
+        let audioEnabled = true;
+        let audioCtx = null;
+
+        function playSound(type) {
+            if (!audioEnabled) return;
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'key') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(800 + Math.random() * 400, now);
+                    gain.gain.setValueAtTime(0.015, now);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
+                    osc.start(now);
+                    osc.stop(now + 0.04);
+                } else if (type === 'enter') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.07);
+                    gain.gain.setValueAtTime(0.03, now);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+                    osc.start(now);
+                    osc.stop(now + 0.07);
+                } else if (type === 'error') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    gain.gain.setValueAtTime(0.04, now);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+                    osc.start(now);
+                    osc.stop(now + 0.18);
+                } else if (type === 'success') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(587.33, now);
+                    osc.frequency.setValueAtTime(880, now + 0.08);
+                    gain.gain.setValueAtTime(0.03, now);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+                    osc.start(now);
+                    osc.stop(now + 0.22);
+                }
+            } catch(e) {
+                // Audio context policy fallback
+            }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const icon = document.getElementById('audio-icon');
+            if (audioEnabled) {
+                icon.setAttribute('data-lucide', 'volume-2');
+                playSound('success');
+            } else {
+                icon.setAttribute('data-lucide', 'volume-x');
+            }
+            lucide.createIcons();
+        }
+
+        function toggleScanlines() {
+            const sc = document.getElementById('scanline-layer');
+            sc.classList.toggle('disabled');
+            playSound('key');
+        }
+    </script>
+
+    <!-- CORE SYSTEM LOGIC & VFS IMPLEMENTATION -->
+    <script>
+        /* ================= VIRTUAL FILE SYSTEM (VFS) DATA ================= */
+        const initialFileSystem = {
+            "/": {
+                type: "dir",
+                permissions: "drwxr-xr-x",
+                owner: "root",
+                modified: "2026-10-21 13:50",
+                children: ["home", "bin", "sys", "var"]
+            },
+            "/home": {
+                type: "dir",
+                permissions: "drwxr-xr-x",
+                owner: "root",
+                modified: "2026-10-21 13:51",
+                children: ["milyes"]
+            },
+            "/home/milyes": {
+                type: "dir",
+                permissions: "drwx------",
+                owner: "milyes",
+                modified: "2026-10-21 13:59",
+                children: ["classified.enc", "notes.txt", "restore_agent.sh", "session_log.md"]
+            },
+            "/bin": {
+                type: "dir",
+                permissions: "drwxr-xr-x",
+                owner: "root",
+                modified: "2026-10-21 12:00",
+                children: ["cyber_payload.elf", "decrypt_tool", "sh", "core_agent"]
+            },
+            "/sys": {
+                type: "dir",
+                permissions: "dr-xr-xr-x",
+                owner: "root",
+                modified: "2026-10-21 10:15",
+                children: ["kernel_dump.dmp", "quota_metrics.json", "nsp_cert.sig"]
+            },
+            "/var": {
+                type: "dir",
+                permissions: "drwxr-xr-x",
+                owner: "root",
+                modified: "2026-10-21 11:00",
+                children: ["log"]
+            },
+            "/var/log": {
+                type: "dir",
+                permissions: "drwxr-xr-x",
+                owner: "root",
+                modified: "2026-10-21 13:58",
+                children: ["syslog.log", "rate_limit_errors.log", "audit.nsp"]
+            },
+
+            // Prepopulated Files
+            "/home/milyes/notes.txt": {
+                type: "file",
+                permissions: "-rw-r--r--",
+                owner: "milyes",
+                modified: "2026-10-21 13:45",
+                size: 218,
+                content: "=== MILYES OBJECTIFS SEMAINE 43 ===\n1. Rétablir le canal de prompt après le freeze 429 de Gemini.\n2. Basculer l'agent par défaut sur GEMINI-CORE-20.6.\n3. Vérifier les signatures cryptographiques du fichier classified.enc.\n4. Compiler vfs_bin.html."
+            },
+            "/home/milyes/classified.enc": {
+                type: "file",
+                permissions: "-rw-------",
+                owner: "milyes",
+                modified: "2026-10-21 13:52",
+                size: 112,
+                rawBytes: [0x53, 0x41, 0x4c, 0x54, 0x5f, 0x99, 0xa4, 0xfe, 0x4e, 0x53, 0x50, 0x2d, 0x32, 0x30, 0x32, 0x36, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x4b, 0x45, 0x59, 0x3a, 0x41, 0x4c, 0x50, 0x48, 0x41, 0x2d, 0x4f, 0x4d, 0x45, 0x47, 0x41, 0x2d, 0x39, 0x39, 0x21, 0x00, 0xff, 0xc0, 0xaa, 0xbb],
+                content: "[DONNÉES CHIFFRÉES AES-GCM 256]. Utilisez la commande 'decrypt /home/milyes/classified.enc' pour déverrouiller le contenu."
+            },
+            "/home/milyes/restore_agent.sh": {
+                type: "file",
+                permissions: "-rwxr-xr-x",
+                owner: "milyes",
+                modified: "2026-10-21 13:55",
+                size: 174,
+                content: "#!/bin/bash\n# Script de secours de purge des rate limits 429\necho '[+] Basculement agent vers GEMINI-CORE-20.6...'\nsudo systemctl restart milyes-agent\necho '[+] Nettoyage de la file VFS terminé.'"
+            },
+            "/home/milyes/session_log.md": {
+                type: "file",
+                permissions: "-rw-r--r--",
+                owner: "milyes",
+                modified: "2026-10-21 13:59",
+                size: 320,
+                content: "# MILYES-IA TERMINAL SESSION EXPORT LOG\nAgent Actif: GEMINI-CORE-20.6\nCertification: NSP-LAW-AI-2026-9942-CERT\nStatut: Prêt pour analyse binaire et commandes VFS."
+            },
+            "/bin/cyber_payload.elf": {
+                type: "file",
+                permissions: "-rwxr-xr-x",
+                owner: "root",
+                modified: "2026-10-21 12:44",
+                size: 128,
+                rawBytes: [
+                    0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x02, 0x00, 0x3E, 0x00, 0x01, 0x00, 0x00, 0x00, 0x78, 0x10, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x48, 0x31, 0xC0, 0x48, 0x89, 0xC2, 0x48, 0x89, 0xC6, 0x48, 0x8D, 0x3D, 0x10, 0x00, 0x00, 0x00,
+                    0x4D, 0x49, 0x4C, 0x59, 0x45, 0x53, 0x2D, 0x43, 0x4F, 0x52, 0x45, 0x2D, 0x50, 0x41, 0x59, 0x4C,
+                    0x4F, 0x41, 0x44, 0x2D, 0x41, 0x55, 0x54, 0x48, 0x32, 0x30, 0x32, 0x36, 0x21, 0x21, 0x00, 0x90,
+                    0x0F, 0x05, 0x48, 0x31, 0xFF, 0xB8, 0x3C, 0x00, 0x00, 0x00, 0x0F, 0x05, 0x90, 0x90, 0xCC, 0xCC,
+                    0x55, 0x48, 0x89, 0xE5, 0x48, 0x83, 0xEC, 0x10, 0xC7, 0x45, 0xFC, 0x00, 0x00, 0x00, 0x00, 0xC9
+                ],
+                content: "ELF Binary File [x86_64 Executable]"
+            },
+            "/bin/decrypt_tool": {
+                type: "file",
+                permissions: "-rwxr-xr-x",
+                owner: "root",
+                modified: "2026-10-21 11:30",
+                size: 84,
+                content: "MILYES Decryption Helper tool [v2.4]. Use 'decrypt <filepath>'."
+            },
+            "/bin/sh": {
+                type: "file",
+                permissions: "-rwxr-xr-x",
+                owner: "root",
+                modified: "2026-10-20 09:00",
+                size: 64,
+                content: "MILYES-IA POSIX Shell Interpreter."
+            },
+            "/bin/core_agent": {
+                type: "file",
+                permissions: "-rwxr-xr-x",
+                owner: "root",
+                modified: "2026-10-21 13:59",
+                size: 96,
+                content: "GEMINI-CORE-20.6 Daemon Launcher."
+            },
+            "/sys/kernel_dump.dmp": {
+                type: "file",
+                permissions: "-r--------",
+                owner: "root",
+                modified: "2026-10-21 10:14",
+                size: 64,
+                rawBytes: [0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x01, 0x4A, 0x54, 0x46, 0x41, 0x55, 0x4C, 0x54, 0x5F, 0x34, 0x32, 0x39, 0x5F, 0x51, 0x55, 0x4F, 0x54, 0x41, 0x5F, 0x45, 0x58, 0x43, 0x45, 0x45, 0x44, 0x45, 0x44],
+                content: "KERNEL CRASH REPORT // QUOTA CRITICAL INTERRUPT"
+            },
+            "/sys/quota_metrics.json": {
+                type: "file",
+                permissions: "-rw-r--r--",
+                owner: "root",
+                modified: "2026-10-21 13:58",
+                size: 165,
+                content: "{\n  \"model\": \"gemini-core-20.6\",\n  \"quota_capacity\": 1000000,\n  \"quota_used\": 160000,\n  \"status\": \"HEALTHY\",\n  \"error_recovery_rate\": \"100%\"\n}"
+            },
+            "/sys/nsp_cert.sig": {
+                type: "file",
+                permissions: "-rw-r--r--",
+                owner: "root",
+                modified: "2026-10-21 08:30",
+                size: 82,
+                content: "NSP-LAW-AI-2026-9942-CERT [NETSECUREPRO VERIFIED KEY SIGNATURE 0xFA499C]"
+            },
+            "/var/log/syslog.log": {
+                type: "file",
+                permissions: "-rw-r--r--",
+                owner: "root",
+                modified: "2026-10-21 13:59",
+                size: 384,
+                content: "13:52:08 [SYSTEM]: MILYES-IA Noyau actif. Tapez 'help'.\n13:54:35 [MILYES-CORE]: Traitement de la requête en cours... [gemini-3.7-flash]\n13:55:01 [ERREUR]: [429 LIMIT / QUOTA] Le quota de l'API Gemini a été atteint.\n13:58:48 [MILYES-CORE]: Nouvelle tentative sur vfs_bin.html...\n13:58:55 [ERREUR]: [429 LIMIT / QUOTA]\n13:59:53 [SYSTEM]: [+] Agent actif basculé sur: GEMINI-CORE-20.6. Status Nominal."
+            },
+            "/var/log/rate_limit_errors.log": {
+                type: "file",
+                permissions: "-rw-r--r--",
+                owner: "root",
+                modified: "2026-10-21 13:58",
+                size: 198,
+                content: "[ERR 429] RESOURCE_EXHAUSTED: Gemini API quota exceeded for client #9942.\nAction: Automatic fallback trigger initiated -> Routing to GEMINI-CORE-20.6."
+            },
+            "/var/log/audit.nsp": {
+                type: "file",
+                permissions: "-rw-------",
+                owner: "root",
+                modified: "2026-10-21 13:00",
+                size: 75,
+                content: "NSP-AUDIT: Integrity check verified. 0 unauthorized file breaches detected."
+            }
+        };
+
+        // Application State
+        let VFS = JSON.parse(JSON.stringify(initialFileSystem));
+        let currentPath = "/home/milyes";
+        let commandHistory = [];
+        let historyIndex = -1;
+        let activeHexPath = "/bin/cyber_payload.elf";
+        let activeView = "terminal";
+        let uptimeSeconds = 868;
+
+        /* ================= VFS HELPER UTILITIES ================= */
+        function resolvePath(target) {
+            if (!target || target === "~") return "/home/milyes";
+            if (target.startsWith("/")) {
+                return normalizePath(target);
+            }
+            if (target === "..") {
+                if (currentPath === "/") return "/";
+                const parts = currentPath.split("/").filter(Boolean);
+                parts.pop();
+                return "/" + parts.join("/");
+            }
+            if (target === ".") return currentPath;
+
+            const base = currentPath === "/" ? "" : currentPath;
+            return normalizePath(`${base}/${target}`);
+        }
+
+        function normalizePath(p) {
+            const parts = p.split("/").filter(Boolean);
+            const resolved = [];
+            for (const part of parts) {
+                if (part === "..") {
+                    if (resolved.length > 0) resolved.pop();
+                } else if (part !== ".") {
+                    resolved.push(part);
+                }
+            }
+            return "/" + resolved.join("/");
+        }
+
+        function getFileBytes(node) {
+            if (node.rawBytes && Array.isArray(node.rawBytes)) {
+                return node.rawBytes;
+            }
+            if (node.content) {
+                const bytes = [];
+                for (let i = 0; i < node.content.length; i++) {
+                    bytes.push(node.content.charCodeAt(i) & 0xff);
+                }
+                return bytes;
+            }
+            return [0x00];
+        }
+
+        /* ================= TERMINAL ENGINE ================= */
+        const terminalInput = document.getElementById("terminal-input");
+        const terminalOutput = document.getElementById("terminal-output");
+        const terminalScroll = document.getElementById("terminal-scroll-area");
+        const promptPwd = document.getElementById("prompt-pwd");
+
+        function updatePromptDisplay() {
+            promptPwd.innerText = currentPath.replace("/home/milyes", "~");
+            document.getElementById("current-pwd-badge").innerText = currentPath;
+        }
+
+        terminalInput.addEventListener("keydown", function(e) {
+            playSound('key');
+            if (e.key === "Enter") {
+                const cmd = this.value.trim();
+                if (cmd) {
+                    commandHistory.push(cmd);
+                    historyIndex = commandHistory.length;
+                    executeTerminalCommand(cmd);
+                    this.value = "";
+                }
+            } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    this.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === "ArrowDown") {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    this.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    this.value = "";
+                }
+            } else if (e.key === "Tab") {
+                e.preventDefault();
+                handleTabAutocomplete(this.value);
+            }
+        });
+
+        // Split view terminal input mirror
+        const splitInput = document.getElementById("split-terminal-input");
+        if (splitInput) {
+            splitInput.addEventListener("keydown", function(e) {
+                if (e.key === "Enter") {
+                    const cmd = this.value.trim();
+                    if (cmd) {
+                        this.value = "";
+                        executeTerminalCommand(cmd);
+                    }
+                }
+            });
+        }
+
+        function logToTerminal(html, type = 'info') {
+            const line = document.createElement("div");
+            line.className = "py-0.5 leading-relaxed break-words";
+            if (type === 'cmd') line.className += " text-cyan-300 font-bold mt-2";
+            if (type === 'error') line.className += " text-rose-400";
+            if (type === 'success') line.className += " text-emerald-400";
+            if (type === 'warn') line.className += " text-amber-300";
+            line.innerHTML = html;
+            terminalOutput.appendChild(line);
+
+            // Mirror to split deck
+            const splitContent = document.getElementById("split-terminal-content");
+            if (splitContent) {
+                const mirrorLine = line.cloneNode(true);
+                splitContent.appendChild(mirrorLine);
+                splitContent.scrollTop = splitContent.scrollHeight;
+            }
+
+            terminalScroll.scrollTop = terminalScroll.scrollHeight;
+        }
+
+        function execQuickCmd(cmd) {
+            playSound('enter');
+            executeTerminalCommand(cmd);
+        }
+
+        function handleTabAutocomplete(text) {
+            const parts = text.split(" ");
+            const lastWord = parts[parts.length - 1];
+            const currentDir = VFS[currentPath];
+            if (!currentDir || !currentDir.children) return;
+
+            const matches = currentDir.children.filter(c => c.startsWith(lastWord));
+            if (matches.length === 1) {
+                parts[parts.length - 1] = matches[0];
+                terminalInput.value = parts.join(" ");
+            } else if (matches.length > 1) {
+                logToTerminal(`<span class="text-zinc-400">${matches.join("   ")}</span>`);
+            }
+        }
+
+        function executeTerminalCommand(fullCommand) {
+            playSound('enter');
+            logToTerminal(`<span class="text-emerald-500 font-bold">milyes@core20.6:${currentPath.replace('/home/milyes', '~')}$</span> ${escapeHtml(fullCommand)}`, 'cmd');
+
+            // Support chained commands '&&'
+            const commands = fullCommand.split("&&");
+            for (let sub of commands) {
+                runSingleCommand(sub.trim());
+            }
+        }
+
+        function runSingleCommand(cmdString) {
+            if (!cmdString) return;
+            const args = cmdString.split(" ").filter(Boolean);
+            const cmd = args[0].toLowerCase();
+            const param = args[1];
+
+            switch(cmd) {
+                case "help":
+                    logToTerminal(`
+<div class="text-cyan-300 font-bold mb-1">[MILYES-IA COMMAND PROTOCOLS]</div>
+<table class="w-full text-xs text-zinc-300">
+  <tr><td class="text-emerald-400 font-bold pr-4">ls [-la] [dir]</td><td>Liste les répertoires ou fichiers du VFS</td></tr>
+  <tr><td class="text-emerald-400 font-bold pr-4">cd &lt;dir&gt;</td><td>Change de répertoire actif (ex: 'cd /bin', 'cd ..')</td></tr>
+  <tr><td class="text-emerald-400 font-bold pr-4">cat &lt;file&gt;</td><td>Affiche le contenu texte d'un fichier</td></tr>
+  <tr><td class="text-emerald-400 font-bold pr-4">hex / binview &lt;file&gt;</td><td>Ouvre l'analyseur binaire et la grille hexadécimale</td></tr>
+  <tr><td class="text-emerald-400 font-bold pr-4">touch &lt;file&gt;</td><td>Crée un fichier virtuel vide</td></tr>
+  <tr><td class="text-emerald-400 font-bold pr-4">mkdir &lt;folder&gt;</td><td>Crée un sous-répertoire</td></tr>
+  <tr><td class="text-emerald-400 font-bold pr-4">rm &lt;file/dir&gt;</td><td>Supprime une entrée du VFS</td></tr>
+  <tr><td class="text-emerald-400 font-bold pr-4">decrypt &lt;file&gt;</td><td>Déchiffre les fichiers cryptés (ex: classified.enc)</td></tr>
+  <tr><td class="text-emerald-400 font-bold pr-4">scan</td><td>Exécute un scan réseau et sondes de sécurité NSP</td></tr>
+  <tr><td class="text-emerald-400 font-bold pr-4">sysinfo / status</td><td>Affiche l'état du noyau GEMINI-CORE-20.6 et quotas</td></tr>
+  <tr><td class="text-emerald-400 font-bold pr-4">clear</td><td>Efface la console du terminal</td></tr>
+</table>
+                    `);
+                    break;
+
+                case "clear":
+                    terminalOutput.innerHTML = "";
+                    break;
+
+                case "pwd":
+                    logToTerminal(currentPath);
+                    break;
+
+                case "ls":
+                    let target = currentPath;
+                    let showDetails = false;
+                    for (let a of args.slice(1)) {
+                        if (a === "-la" || a === "-l" || a === "-a") showDetails = true;
+                        else target = resolvePath(a);
+                    }
+                    executeLs(target, showDetails);
+                    break;
+
+                case "cd":
+                    if (!param || param === "~") {
+                        currentPath = "/home/milyes";
+                    } else {
+                        const newP = resolvePath(param);
+                        if (VFS[newP] && VFS[newP].type === "dir") {
+                            currentPath = newP;
+                        } else {
+                            logToTerminal(`cd: no such file or directory: ${param}`, 'error');
+                            playSound('error');
+                            return;
+                        }
+                    }
+                    updatePromptDisplay();
+                    renderVfsTree();
+                    renderVfsFileList();
+                    break;
+
+                case "cat":
+                    if (!param) {
+                        logToTerminal("cat: missing operand", "error");
+                        playSound('error');
+                        return;
+                    }
+                    const filePath = resolvePath(param);
+                    const fileObj = VFS[filePath];
+                    if (!fileObj) {
+                        logToTerminal(`cat: ${param}: No such file or directory`, 'error');
+                        playSound('error');
+                    } else if (fileObj.type === "dir") {
+                        logToTerminal(`cat: ${param}: Is a directory`, 'warn');
+                    } else {
+                        logToTerminal(`<pre class="text-emerald-300 font-mono text-xs whitespace-pre-wrap">${escapeHtml(fileObj.content || "[Empty raw binary buffer]")}</pre>`);
+                    }
+                    break;
+
+                case "hex":
+                case "binview":
+                case "vfs_bin.html":
+                case "vfs_bin":
+                    const targetFile = param ? resolvePath(param) : "/bin/cyber_payload.elf";
+                    if (VFS[targetFile]) {
+                        switchView('hex');
+                        loadHexFile(targetFile);
+                        logToTerminal(`[+] Tampon binaire chargé dans l'Hex Viewer : <span class="text-cyan-300">${targetFile}</span>`, 'success');
+                    } else {
+                        logToTerminal(`hex: ${targetFile}: Fichier introuvable.`, 'error');
+                        playSound('error');
+                    }
+                    break;
+
+                case "touch":
+                    if (!param) {
+                        logToTerminal("touch: missing file operand", "error");
+                        return;
+                    }
+                    createVfsItem(param, "file");
+                    break;
+
+                case "mkdir":
+                    if (!param) {
+                        logToTerminal("mkdir: missing directory operand", "error");
+                        return;
+                    }
+                    createVfsItem(param, "dir");
+                    break;
+
+                case "rm":
+                    if (!param) {
+                        logToTerminal("rm: missing operand", "error");
+                        return;
+                    }
+                    deleteVfsItem(param);
+                    break;
+
+                case "sysinfo":
+                case "status":
+                    logToTerminal(`
+<div class="border border-cyan-800/60 p-2 rounded bg-slate-900/60 text-xs">
+  <div class="text-cyan-400 font-bold mb-1">=== MILYES-IA NOYAU SYSTÈME TELEMETRY ===</div>
+  <div>- Kernel Version   : <span class="text-white">MILYES-CORE v4.0.9 (Build 2026.10-NSP)</span></div>
+  <div>- Active Agent     : <span class="text-emerald-400 font-bold">GEMINI-CORE-20.6</span> (Failover active)</div>
+  <div>- Previous Agent   : <span class="text-rose-400">gemini-3.7-flash (429 Rate Limit Cooldown)</span></div>
+  <div>- Security Cert    : <span class="text-yellow-400">NSP-LAW-AI-2026-9942-CERT</span></div>
+  <div>- VFS Storage Load : <span class="text-cyan-300">12 Inodes / 4.2 KB virtual</span></div>
+  <div>- Session Memory   : <span class="text-emerald-300">Nominal (Zero Leak Detected)</span></div>
+</div>
+                    `);
+                    break;
+
+                case "decrypt":
+                    const encFile = param ? resolvePath(param) : "/home/milyes/classified.enc";
+                    if (VFS[encFile]) {
+                        logToTerminal("[*] Lancement de la routine de déchiffrement NSP-KEY...", "warn");
+                        setTimeout(() => {
+                            logToTerminal(`
+<div class="p-2 border border-emerald-500/50 bg-emerald-950/20 rounded">
+  <div class="text-emerald-400 font-bold">[DÉCHIFFREMENT RÉUSSI - CLEF NSP-2026 TROUVÉE]</div>
+  <div class="text-zinc-200 mt-1">Payload Clair: <span class="text-cyan-300 font-mono">"MILYES_OPERATION_CYBER_HORIZON_2026: TOUS LES ACCÈS SONT VALIDÉS."</span></div>
+  <div class="text-zinc-400 text-[11px] mt-1">Hachage SHA-256: 7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069</div>
+</div>
+                            `, 'success');
+                            playSound('success');
+                        }, 500);
+                    } else {
+                        logToTerminal(`decrypt: file '${encFile}' not found.`, 'error');
+                        playSound('error');
+                    }
+                    break;
+
+                case "scan":
+                    logToTerminal("[*] Initialisation du scanner réseau NSP...", "warn");
+                    setTimeout(() => {
+                        logToTerminal(`
+<div class="font-mono text-xs text-zinc-300 space-y-1">
+  <div class="text-cyan-400">[SCAN ACTIF SUR 10.0.42.0/24]</div>
+  <div>> 10.0.42.1  : ROUTEUR CENTRAL NSP [PORT 22/SSH, 443/HTTPS OPEN]</div>
+  <div>> 10.0.42.19 : GEMINI-CORE GATEWAY [ONLINE - LATENCE 18ms]</div>
+  <div>> 10.0.42.88 : VFS BUFFER SERVER [PORT 8080 OPEN - SYNCHRO OK]</div>
+  <div class="text-emerald-400 mt-1">[✓] Scan terminé : 3 hôtes actifs, aucun intrusion détectée.</div>
+</div>
+                        `, 'success');
+                    }, 400);
+                    break;
+
+                default:
+                    logToTerminal(`bash: ${escapeHtml(cmd)}: command not found. Tapez <span class="text-yellow-300 font-bold">help</span> pour voir les commandes.`, 'error');
+                    playSound('error');
+                    break;
+            }
+        }
+
+        function executeLs(path, showDetails) {
+            const dir = VFS[path];
+            if (!dir) {
+                logToTerminal(`ls: cannot access '${path}': No such file or directory`, 'error');
+                playSound('error');
+                return;
+            }
+            if (dir.type === "file") {
+                logToTerminal(`<span class="text-cyan-300">${path}</span>`);
+                return;
+            }
+
+            if (showDetails) {
+                let html = `<div class="font-mono text-xs text-zinc-400 space-y-0.5">`;
+                html += `<div>total ${dir.children.length}</div>`;
+                for (let childName of dir.children) {
+                    const full = path === "/" ? `/${childName}` : `${path}/${childName}`;
+                    const item = VFS[full] || { permissions: "-rw-r--r--", owner: "milyes", size: 0, modified: "2026-10-21" };
+                    const isDir = item.type === "dir";
+                    const colorClass = isDir ? "text-cyan-400 font-bold" : (item.permissions.includes("x") ? "text-emerald-400 font-bold" : "text-zinc-200");
+                    html += `<div class="grid grid-cols-12 gap-1"><span class="col-span-3 text-zinc-500">${item.permissions}</span><span class="col-span-2 text-zinc-500">${item.owner}</span><span class="col-span-2 text-zinc-400">${item.size || 4096}B</span><span class="col-span-3 text-zinc-500">${item.modified}</span><span class="col-span-2 ${colorClass}">${childName}${isDir ? '/' : ''}</span></div>`;
+                }
+                html += `</div>`;
+                logToTerminal(html);
+            } else {
+                let list = dir.children.map(name => {
+                    const full = path === "/" ? `/${name}` : `${path}/${name}`;
+                    const isDir = VFS[full] && VFS[full].type === "dir";
+                    return `<span class="${isDir ? 'text-cyan-400 font-bold' : 'text-zinc-200'} mr-4 cursor-pointer hover:underline" onclick="execQuickCmd('${isDir ? 'cd ' + name : 'cat ' + name}')">${name}${isDir ? '/' : ''}</span>`;
+                }).join("");
+                logToTerminal(`<div class="flex flex-wrap py-1">${list}</div>`);
+            }
+        }
+
+        /* ================= VFS GUI / TREE LOGIC ================= */
+        function renderVfsTree() {
+            const container = document.getElementById("vfs-tree-container");
+            if (!container) return;
+            container.innerHTML = "";
+
+            function buildNode(path, label) {
+                const isDir = VFS[path] && VFS[path].type === "dir";
+                const isSelected = currentPath === path;
+                const div = document.createElement("div");
+                div.className = `flex items-center space-x-1.5 py-1 px-1.5 rounded cursor-pointer transition ${isSelected ? 'bg-cyan-950/70 text-cyan-300 border border-cyan-800' : 'hover:bg-slate-900 text-zinc-400'}`;
+                div.innerHTML = `<i data-lucide="${isDir ? 'folder' : 'file-code'}" class="w-3.5 h-3.5 ${isDir ? 'text-amber-400' : 'text-cyan-400'}"></i><span class="truncate">${label}</span>`;
+                div.onclick = () => {
+                    if (isDir) {
+                        currentPath = path;
+                        updatePromptDisplay();
+                        renderVfsTree();
+                        renderVfsFileList();
+                        playSound('key');
+                    } else {
+                        openVfsPreview(path);
+                    }
+                };
+                return div;
+            }
+
+            // Top root nodes
+            const rootWrapper = document.createElement("div");
+            rootWrapper.className = "space-y-1";
+            rootWrapper.appendChild(buildNode("/", "/ (root)"));
+
+            const dirs = ["/home", "/home/milyes", "/bin", "/sys", "/var", "/var/log"];
+            dirs.forEach(d => {
+                if (VFS[d]) {
+                    const el = buildNode(d, d);
+                    el.style.paddingLeft = `${(d.split("/").length - 1) * 10}px`;
+                    rootWrapper.appendChild(el);
+                }
+            });
+
+            container.appendChild(rootWrapper);
+            lucide.createIcons();
+        }
+
+        function renderVfsFileList() {
+            const tbody = document.getElementById("vfs-file-list");
+            document.getElementById("vfs-current-path").innerText = currentPath;
+            if (!tbody) return;
+            tbody.innerHTML = "";
+
+            const dir = VFS[currentPath];
+            if (!dir || !dir.children) return;
+
+            // If not at root, add '..' parent directory link
+            if (currentPath !== "/") {
+                const tr = document.createElement("tr");
+                tr.className = "hover:bg-slate-900/50 cursor-pointer text-zinc-400";
+                tr.innerHTML = `
+                    <td class="py-2 flex items-center space-x-2 text-amber-300 font-bold"><i data-lucide="corner-left-up" class="w-3.5 h-3.5"></i><span>..</span></td>
+                    <td>drwxr-xr-x</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td class="text-right"></td>
+                `;
+                tr.onclick = () => {
+                    executeTerminalCommand("cd ..");
+                };
+                tbody.appendChild(tr);
+            }
+
+            dir.children.forEach(childName => {
+                const full = currentPath === "/" ? `/${childName}` : `${currentPath}/${childName}`;
+                const item = VFS[full] || { type: "file", permissions: "-rw-r--r--", size: 0, modified: "2026-10-21" };
+                const isDir = item.type === "dir";
+
+                const tr = document.createElement("tr");
+                tr.className = "hover:bg-slate-900/70 border-b border-slate-900 transition";
+
+                tr.innerHTML = `
+                    <td class="py-2.5">
+                        <div class="flex items-center space-x-2 cursor-pointer" onclick="handleItemClick('${full}')">
+                            <i data-lucide="${isDir ? 'folder' : (childName.endsWith('.elf') || childName.endsWith('.enc') ? 'binary' : 'file-text')}" class="w-4 h-4 ${isDir ? 'text-amber-400' : (childName.endsWith('.enc') ? 'text-rose-400' : 'text-cyan-400')}"></i>
+                            <span class="${isDir ? 'font-bold text-cyan-300' : 'text-zinc-200'}">${childName}</span>
+                        </div>
+                    </td>
+                    <td class="text-zinc-500">${item.permissions}</td>
+                    <td class="text-zinc-400">${item.size ? item.size + ' B' : (isDir ? '<DIR>' : '0 B')}</td>
+                    <td class="text-zinc-500 text-[11px]">${item.modified}</td>
+                    <td class="text-right space-x-1.5">
+                        ${!isDir ? `<button onclick="loadHexFile('${full}'); switchView('hex')" title="Inspect Binary Hex" class="p-1 hover:bg-slate-800 text-amber-400 rounded"><i data-lucide="binary" class="w-3.5 h-3.5"></i></button>` : ''}
+                        <button onclick="deleteVfsItem('${childName}')" title="Delete" class="p-1 hover:bg-rose-950 text-rose-400 rounded"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            lucide.createIcons();
+        }
+
+        function handleItemClick(fullPath) {
+            const item = VFS[fullPath];
+            if (!item) return;
+            if (item.type === "dir") {
+                currentPath = fullPath;
+                updatePromptDisplay();
+                renderVfsTree();
+                renderVfsFileList();
+                playSound('key');
+            } else {
+                openVfsPreview(fullPath);
+            }
+        }
+
+        function openVfsPreview(fullPath) {
+            const item = VFS[fullPath];
+            if (!item || item.type === "dir") return;
+            const panel = document.getElementById("vfs-quick-preview-panel");
+            const filenameLabel = document.getElementById("vfs-preview-filename");
+            const contentBox = document.getElementById("vfs-preview-content");
+            const hexBtn = document.getElementById("vfs-preview-hex-btn");
+
+            filenameLabel.innerText = fullPath;
+            contentBox.innerText = item.content || "[Binary Data - use Hex Viewer]";
+            panel.classList.remove("hidden");
+            hexBtn.onclick = () => {
+                loadHexFile(fullPath);
+                switchView('hex');
+            };
+            playSound('key');
+        }
+
+        function closeVfsPreview() {
+            document.getElementById("vfs-quick-preview-panel").classList.add("hidden");
+        }
+
+        function createVfsItem(name, type) {
+            const clean = name.replace(/[^\w\.\-_]/g, "");
+            if (!clean) return;
+            const target = currentPath === "/" ? `/${clean}` : `${currentPath}/${clean}`;
+            if (VFS[target]) {
+                logToTerminal(`Erreur: '${clean}' existe déjà dans ce répertoire.`, 'error');
+                return;
+            }
+
+            if (type === "dir") {
+                VFS[target] = {
+                    type: "dir",
+                    permissions: "drwxr-xr-x",
+                    owner: "milyes",
+                    modified: "2026-10-21 14:02",
+                    children: []
+                };
+            } else {
+                VFS[target] = {
+                    type: "file",
+                    permissions: "-rw-r--r--",
+                    owner: "milyes",
+                    modified: "2026-10-21 14:02",
+                    size: 16,
+                    content: "# Empty VFS file\n"
+                };
+            }
+
+            VFS[currentPath].children.push(clean);
+            logToTerminal(`[+] Entrée VFS créée avec succès : ${target}`, 'success');
+            renderVfsTree();
+            renderVfsFileList();
+            playSound('success');
+        }
+
+        function deleteVfsItem(name) {
+            const clean = name.replace(/[^\w\.\-_]/g, "");
+            const target = currentPath === "/" ? `/${clean}` : `${currentPath}/${clean}`;
+            if (!VFS[target]) {
+                logToTerminal(`rm: impossible de supprimer '${name}': No such file`, 'error');
+                return;
+            }
+
+            delete VFS[target];
+            VFS[currentPath].children = VFS[currentPath].children.filter(c => c !== clean);
+            logToTerminal(`[-] Entrée VFS purgée : ${clean}`, 'warn');
+            renderVfsTree();
+            renderVfsFileList();
+            playSound('enter');
+        }
+
+        /* ================= HEX VIEWER & BINARY INSPECTOR ================= */
+        let currentHexBytes = [];
+        let selectedByteOffset = 0;
+
+        function loadHexFile(filePath) {
+            activeHexPath = filePath;
+            const file = VFS[filePath];
+            if (!file) return;
+
+            document.getElementById("hex-active-filename").innerText = filePath;
+            document.getElementById("hex-file-selector").value = filePath;
+            const splitHexTitle = document.getElementById("split-hex-title");
+            if (splitHexTitle) splitHexTitle.innerText = filePath.split("/").pop();
+
+            currentHexBytes = getFileBytes(file);
+            document.getElementById("hex-filesize-badge").innerText = `[${currentHexBytes.length} BYTES]`;
+
+            renderHexViewer(currentHexBytes);
+            updateByteInspector(0);
+        }
+
+        function renderHexViewer(bytes, highlightFilter = "") {
+            const container = document.getElementById("hex-container");
+            const splitDeckContainer = document.getElementById("split-hex-content");
+            container.innerHTML = "";
+            if (splitDeckContainer) splitDeckContainer.innerHTML = "";
+
+            const rowCount = Math.ceil(bytes.length / 16);
+
+            for (let r = 0; r < rowCount; r++) {
+                const offset = r * 16;
+                const offsetHex = "0x" + offset.toString(16).padStart(8, '0').toUpperCase();
+
+                const rowDiv = document.createElement("div");
+                rowDiv.className = "grid grid-cols-12 gap-2 hover:bg-slate-900/60 py-0.5 rounded px-1 transition items-center";
+
+                // Offset Column
+                const colOffset = document.createElement("div");
+                colOffset.className = "col-span-2 text-cyan-600 select-none font-bold";
+                colOffset.innerText = offsetHex;
+                rowDiv.appendChild(colOffset);
+
+                // Hex Bytes Column (16 bytes)
+                const colBytes = document.createElement("div");
+                colBytes.className = "col-span-6 flex flex-wrap gap-x-1.5 tracking-wider hidden sm:flex";
+
+                // ASCII Decoded Column
+                const colAscii = document.createElement("div");
+                colAscii.className = "col-span-4 text-emerald-400 font-mono tracking-widest break-all";
+
+                let asciiString = "";
+
+                for (let b = 0; b < 16; b++) {
+                    const byteIdx = offset + b;
+                    if (byteIdx < bytes.length) {
+                        const val = bytes[byteIdx];
+                        const hexVal = val.toString(16).padStart(2, '0').toUpperCase();
+
+                        const span = document.createElement("span");
+                        span.className = "hex-byte px-1 rounded transition";
+                        span.id = `byte-${byteIdx}`;
+                        span.innerText = hexVal;
+
+                        // Selection and click inspection
+                        span.onclick = () => {
+                            selectByte(byteIdx);
+                        };
+
+                        if (highlightFilter && (hexVal.toLowerCase().includes(highlightFilter) || String.fromCharCode(val).toLowerCase().includes(highlightFilter))) {
+                            span.classList.add("bg-amber-500/50", "text-white");
+                        }
+
+                        colBytes.appendChild(span);
+
+                        // ASCII printable check
+                        if (val >= 32 && val <= 126) {
+                            asciiString += String.fromCharCode(val);
+                        } else {
+                            asciiString += "·";
+                        }
+                    } else {
+                        // Empty padding
+                        const emptySpan = document.createElement("span");
+                        emptySpan.className = "text-zinc-800 px-1 select-none";
+                        emptySpan.innerText = "--";
+                        colBytes.appendChild(emptySpan);
+                    }
+                }
+
+                colAscii.innerText = asciiString;
+                rowDiv.appendChild(colBytes);
+                rowDiv.appendChild(colAscii);
+
+                container.appendChild(rowDiv);
+
+                if (splitDeckContainer && r < 12) {
+                    const clone = rowDiv.cloneNode(true);
+                    splitDeckContainer.appendChild(clone);
+                }
+            }
+        }
+
+        function selectByte(index) {
+            document.querySelectorAll(".hex-byte.selected").forEach(el => el.classList.remove("selected"));
+            const target = document.getElementById(`byte-${index}`);
+            if (target) target.classList.add("selected");
+            selectedByteOffset = index;
+            updateByteInspector(index);
+            playSound('key');
+        }
+
+        function updateByteInspector(index) {
+            if (index < 0 || index >= currentHexBytes.length) return;
+            const val = currentHexBytes[index];
+            document.getElementById("insp-offset").innerText = "0x" + index.toString(16).padStart(8, '0').toUpperCase();
+            document.getElementById("insp-hex").innerText = "0x" + val.toString(16).padStart(2, '0').toUpperCase();
+            document.getElementById("insp-dec").innerText = val.toString();
+            document.getElementById("insp-bin").innerText = val.toString(2).padStart(8, '0');
+        }
+
+        function searchHexContent() {
+            const query = document.getElementById("hex-search-input").value.trim().toLowerCase();
+            renderHexViewer(currentHexBytes, query);
+        }
+
+        function editByteModal() {
+            const currentVal = currentHexBytes[selectedByteOffset] || 0;
+            openModal(
+                "EDIT BYTE AT OFFSET " + "0x" + selectedByteOffset.toString(16).toUpperCase(),
+                `
+                <div class="space-y-3">
+                    <p class="text-zinc-400">Modifier la valeur du byte sélectionné (valeur Hex ou Décimale):</p>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-cyan-400 font-bold">New Hex:</span>
+                        <input id="modal-hex-input" type="text" maxlength="2" value="${currentVal.toString(16).padStart(2, '0').toUpperCase()}" class="bg-black/60 border border-slate-700 px-2 py-1 rounded text-emerald-400 font-mono w-20 text-center uppercase">
+                    </div>
+                </div>
+                `,
+                () => {
+                    const inputVal = document.getElementById("modal-hex-input").value.trim();
+                    const parsed = parseInt(inputVal, 16);
+                    if (!isNaN(parsed) && parsed >= 0 && parsed <= 255) {
+                        currentHexBytes[selectedByteOffset] = parsed;
+                        // Synchronize back to VFS file object
+                        if (VFS[activeHexPath]) {
+                            VFS[activeHexPath].rawBytes = currentHexBytes;
+                            VFS[activeHexPath].content = currentHexBytes.map(c => String.fromCharCode(c)).join("");
+                        }
+                        renderHexViewer(currentHexBytes);
+                        updateByteInspector(selectedByteOffset);
+                        logToTerminal(`[+] Modification appliquée sur ${activeHexPath} offset 0x${selectedByteOffset.toString(16)} -> 0x${parsed.toString(16).toUpperCase()}`, 'success');
+                        playSound('success');
+                        closeModal();
+                    } else {
+                        playSound('error');
+                    }
+                }
+            );
+        }
+
+        /* ================= MODAL & DIALOG HELPERS ================= */
+        function openModal(title, bodyHtml, onConfirm) {
+            document.getElementById("modal-title").innerHTML = `<i data-lucide="edit-3" class="w-4 h-4"></i><span>${title}</span>`;
+            document.getElementById("modal-body").innerHTML = bodyHtml;
+            const confirmBtn = document.getElementById("modal-confirm-btn");
+            confirmBtn.onclick = onConfirm;
+            document.getElementById("system-modal").classList.remove("hidden");
+            lucide.createIcons();
+        }
+
+        function closeModal() {
+            document.getElementById("system-modal").classList.add("hidden");
+        }
+
+        function createItemDialog(type) {
+            openModal(
+                type === "dir" ? "NOUVEAU RÉPERTOIRE VFS" : "NOUVEAU FICHIER VFS",
+                `
+                <div>
+                    <label class="text-zinc-400 block mb-1">Nom de l'élément :</label>
+                    <input id="new-item-input" type="text" placeholder="${type === 'dir' ? 'subfolder' : 'script.sh'}" class="w-full bg-black/60 border border-slate-700 rounded px-2 py-1.5 text-cyan-300 font-mono focus:border-cyan-400 outline-none">
+                </div>
+                `,
+                () => {
+                    const val = document.getElementById("new-item-input").value.trim();
+                    if (val) {
+                        createVfsItem(val, type);
+                        closeModal();
+                    }
+                }
+            );
+        }
+
+        /* ================= VIEW NAVIGATION TABS ================= */
+        function switchView(viewName) {
+            activeView = viewName;
+            playSound('key');
+
+            const views = ["terminal", "vfs", "hex", "split"];
+            views.forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                const tab = document.getElementById(`tab-${v}`);
+                if (el) el.classList.add("hidden");
+                if (tab) {
+                    tab.classList.remove("text-emerald-400", "bg-emerald-950/30", "border-emerald-500/30", "text-cyan-400", "bg-cyan-950/40");
+                    tab.classList.add("text-zinc-400", "border-transparent");
+                }
+            });
+
+            const activeEl = document.getElementById(`view-${viewName}`);
+            const activeTab = document.getElementById(`tab-${viewName}`);
+
+            if (activeEl) activeEl.classList.remove("hidden");
+            if (activeTab) {
+                activeTab.classList.remove("text-zinc-400", "border-transparent");
+                activeTab.classList.add("text-cyan-400", "bg-cyan-950/40", "border-cyan-500/30");
+            }
+
+            if (viewName === "vfs") {
+                renderVfsTree();
+                renderVfsFileList();
+            } else if (viewName === "hex") {
+                loadHexFile(activeHexPath);
+            } else if (viewName === "terminal") {
+                terminalInput.focus();
+            }
+        }
+
+        function resetWorkspace() {
+            playSound('error');
+            VFS = JSON.parse(JSON.stringify(initialFileSystem));
+            currentPath = "/home/milyes";
+            updatePromptDisplay();
+            renderVfsTree();
+            renderVfsFileList();
+            loadHexFile("/bin/cyber_payload.elf");
+            logToTerminal("[+] Workspace VFS réinitialisé. Session synchronisée avec GEMINI-CORE-20.6.", "success");
+        }
+
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        /* ================= SYSTEM SIMULATION TICKERS ================= */
+        setInterval(() => {
+            uptimeSeconds++;
+            const hrs = String(Math.floor(uptimeSeconds / 3600)).padStart(2, '0');
+            const mins = String(Math.floor((uptimeSeconds % 3600) / 60)).padStart(2, '0');
+            const secs = String(uptimeSeconds % 60).padStart(2, '0');
+            const clockEl = document.getElementById("uptime-clock");
+            if (clockEl) clockEl.innerText = `${hrs}:${mins}:${secs}`;
+
+            // Mock CPU load fluctuation
+            const cpuEl = document.getElementById("cpu-load");
+            if (cpuEl && Math.random() > 0.6) {
+                const load = Math.floor(10 + Math.random() * 18);
+                cpuEl.innerText = `${load}%`;
+            }
+        }, 1000);
+
+        // Window Init
+        window.onload = function() {
+            lucide.createIcons();
+            updatePromptDisplay();
+            renderVfsTree();
+            renderVfsFileList();
+            loadHexFile("/bin/cyber_payload.elf");
+            terminalInput.focus();
+        };
+    </script>
+</body>
+</html>
