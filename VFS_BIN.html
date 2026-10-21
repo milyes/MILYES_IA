@@ -1,0 +1,336 @@
+
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MILYES-IA // VFS_BIN.HTML [CORE-20.6]</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&display=swap');
+
+        :root {
+            --terminal-green: #00ff66;
+            --terminal-cyan: #00f0ff;
+            --terminal-amber: #ffb703;
+            --terminal-red: #ff3366;
+            --bg-void: #05080d;
+            --bg-panel: #0a0f18;
+            --bg-elevated: #0f1726;
+            --border-glow: rgba(0, 240, 255, 0.25);
+        }
+
+        body {
+            font-family: 'Fira Code', monospace;
+            background-color: var(--bg-void);
+            color: #d1d5db;
+            overflow-x: hidden;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Scanline Overlay */
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 3px, 6px 100%;
+            z-index: 999;
+            opacity: 0.65;
+            transition: opacity 0.3s;
+        }
+
+        .scanlines.disabled {
+            display: none;
+        }
+
+        /* CRT Screen curve and subtle vignette */
+        .crt-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            box-shadow: inset 0 0 100px rgba(0,0,0,0.85);
+            z-index: 998;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090e17;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 2px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00f0ff88;
+        }
+
+        /* Glow effects */
+        .neon-cyan-glow {
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+        }
+        .neon-green-glow {
+            text-shadow: 0 0 8px rgba(0, 255, 102, 0.6);
+        }
+        .box-glow-cyan {
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.15);
+        }
+
+        .hex-byte:hover {
+            background-color: rgba(0, 240, 255, 0.25);
+            color: #ffffff;
+            cursor: pointer;
+        }
+        .hex-byte.selected {
+            background-color: rgba(0, 255, 102, 0.4);
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        /* Typing indicator cursor */
+        .cursor-blink {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: var(--terminal-green);
+            animation: blink 1s step-start infinite;
+            vertical-align: sub;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col select-none antialiased">
+    <div id="scanline-layer" class="scanlines"></div>
+    <div class="crt-overlay"></div>
+
+    <!-- TOP SYSTEM STATUS BAR -->
+    <header class="bg-[#080d14] border-b border-cyan-900/50 px-4 py-2.5 flex items-center justify-between text-xs tracking-wider z-20">
+        <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="font-orbitron font-bold text-cyan-400 text-sm tracking-widest neon-cyan-glow">MILYES-IA</span>
+            </div>
+            <span class="text-zinc-600">|</span>
+            <span class="text-zinc-400 hidden sm:inline">AGENT: <span class="text-emerald-400 font-semibold">GEMINI-CORE-20.6</span></span>
+            <span class="text-zinc-600 hidden md:inline">|</span>
+            <span class="text-zinc-500 hidden md:inline">NODE: <span class="text-zinc-300">NSP-LAW-AI-9942</span></span>
+        </div>
+
+        <!-- Telemetry Pill / Stats -->
+        <div class="flex items-center space-x-4">
+            <div class="hidden lg:flex items-center space-x-2 bg-slate-900/80 px-2 py-1 rounded border border-slate-800">
+                <span class="text-slate-400 text-[10px]">API QUOTA</span>
+                <div class="w-20 bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div id="quota-bar" class="bg-gradient-to-r from-emerald-500 to-cyan-400 h-full w-[84%] transition-all duration-500"></div>
+                </div>
+                <span id="quota-val" class="text-cyan-300 text-[10px] font-mono">84%</span>
+            </div>
+
+            <div class="hidden sm:flex items-center space-x-2 text-zinc-400 text-[11px]">
+                <i data-lucide="cpu" class="w-3.5 h-3.5 text-cyan-400"></i>
+                <span id="cpu-load">12%</span>
+            </div>
+
+            <div class="hidden sm:flex items-center space-x-2 text-zinc-400 text-[11px]">
+                <i data-lucide="activity" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span id="uptime-clock">00:14:28</span>
+            </div>
+
+            <!-- Audio & CRT Toggles -->
+            <div class="flex items-center space-x-1 border-l border-slate-800 pl-3">
+                <button id="toggle-audio-btn" onclick="toggleAudio()" title="Toggle Sound FX" class="p-1.5 rounded hover:bg-slate-800 text-zinc-400 hover:text-cyan-400 transition">
+                    <i data-lucide="volume-2" id="audio-icon" class="w-4 h-4"></i>
+                </button>
+                <button onclick="toggleScanlines()" title="Toggle CRT Scanlines" class="p-1.5 rounded hover:bg-slate-800 text-zinc-400 hover:text-cyan-400 transition">
+                    <i data-lucide="tv" class="w-4 h-4"></i>
+                </button>
+                <button onclick="resetWorkspace()" title="Reboot Session" class="p-1.5 rounded hover:bg-rose-950/40 text-zinc-400 hover:text-rose-400 transition">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- NAVIGATION TABS -->
+    <nav class="bg-[#0b121e] border-b border-slate-800 px-4 py-1.5 flex items-center justify-between text-xs z-10">
+        <div class="flex space-x-1 sm:space-x-2">
+            <button onclick="switchView('terminal')" id="tab-terminal" class="view-tab flex items-center space-x-2 px-3 py-1.5 rounded font-medium transition text-emerald-400 bg-emerald-950/30 border border-emerald-500/30">
+                <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+                <span>CONSOLE CORE</span>
+            </button>
+            <button onclick="switchView('vfs')" id="tab-vfs" class="view-tab flex items-center space-x-2 px-3 py-1.5 rounded font-medium transition text-zinc-400 hover:text-cyan-300 hover:bg-slate-800/40 border border-transparent">
+                <i data-lucide="folder-tree" class="w-3.5 h-3.5"></i>
+                <span>VFS EXPLORER</span>
+            </button>
+            <button onclick="switchView('hex')" id="tab-hex" class="view-tab flex items-center space-x-2 px-3 py-1.5 rounded font-medium transition text-zinc-400 hover:text-cyan-300 hover:bg-slate-800/40 border border-transparent">
+                <i data-lucide="binary" class="w-3.5 h-3.5"></i>
+                <span>BIN / HEX VIEWER</span>
+            </button>
+            <button onclick="switchView('split')" id="tab-split" class="view-tab hidden md:flex items-center space-x-2 px-3 py-1.5 rounded font-medium transition text-zinc-400 hover:text-cyan-300 hover:bg-slate-800/40 border border-transparent">
+                <i data-lucide="columns-2" class="w-3.5 h-3.5"></i>
+                <span>SPLIT DECK</span>
+            </button>
+        </div>
+
+        <div class="flex items-center space-x-2 text-[11px] text-zinc-400 font-mono">
+            <span class="text-zinc-600 hidden sm:inline">VFS_ROOT:</span>
+            <span id="current-pwd-badge" class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-cyan-300">/home/milyes</span>
+        </div>
+    </nav>
+
+    <!-- MAIN INTERFACE BODY -->
+    <main class="flex-1 relative overflow-hidden bg-[#070b12] text-sm">
+
+        <!-- ==================== VIEW 1: TERMINAL CONSOLE ==================== -->
+        <div id="view-terminal" class="w-full h-full flex flex-col p-3 overflow-hidden">
+            <div id="terminal-scroll-area" class="flex-1 overflow-y-auto space-y-1.5 p-3 rounded-lg bg-black/50 border border-cyan-950/60 font-mono text-[13px] leading-relaxed select-text">
+                <!-- Terminal Initial Feed / Log -->
+                <div class="text-zinc-500 pb-2 border-b border-zinc-800/70 text-[12px]">
+                    <pre class="text-cyan-400 font-bold leading-none hidden sm:block">
+ ███╗   ███╗██╗██╗     ██╗   ██╗███████╗███████╗    ██╗██████╗ 
+ ████╗ ████║██║██║     ██║   ██║██╔════╝██╔════╝    ██║██╔══██╗
+ ██╔████╔██║██║██║     ╚██╗ ██╔╝█████╗  ███████╗    ██║██╔══██╗
+ ██║╚██╔╝██║██║██║      ╚████╔╝ ██╔══╝  ╚════██║    ██║██╔══██╗
+ ██║ ╚═╝ ██║██║███████╗  ╚██╔╝  ███████╗███████║    ██║██║  ██║
+ ╚═╝     ╚═╝╚═╝╚══════╝   ╚═╝   ╚══════╝╚══════╝    ╚═╝╚═╝  ╚═╝
+                    </pre>
+                    <div class="mt-2 text-emerald-400 font-semibold">[SUPER ÉMULATEUR INTERACTIF IA - CORE v20.6 RESTORED]</div>
+                    <div class="text-zinc-400 mt-1">Session /home/milyes initialisée. Erreurs de quota (429) purgées via GEMINI-CORE-20.6.</div>
+                    <div class="text-cyan-400/80 mt-1">Astuce : Tapez <span class="text-yellow-300 font-bold">help</span>, <span class="text-yellow-300 font-bold">ls</span>, <span class="text-yellow-300 font-bold">hex /bin/cyber_payload.elf</span> ou cliquez sur les fichiers dans le VFS.</div>
+                </div>
+
+                <!-- Dynamic Output Container -->
+                <div id="terminal-output" class="space-y-1 text-slate-300"></div>
+
+                <!-- Input Prompt Line inside scroll area -->
+                <div class="flex items-center space-x-2 pt-2 text-emerald-400">
+                    <span class="font-bold flex-shrink-0 text-cyan-400" id="prompt-label">milyes@core20.6:<span id="prompt-pwd">~</span>$</span>
+                    <input type="text" id="terminal-input" autocomplete="off" spellcheck="false" class="flex-1 bg-transparent text-emerald-300 outline-none border-none font-mono focus:ring-0 text-[13px] p-0" autofocus>
+                </div>
+            </div>
+
+            <!-- Quick Action Toolbar at the bottom of Terminal -->
+            <div class="mt-2 flex flex-wrap gap-1.5 pt-1 text-[11px]">
+                <button onclick="execQuickCmd('help')" class="px-2.5 py-1 bg-slate-900 hover:bg-cyan-950 text-cyan-400 border border-cyan-900/60 rounded">help</button>
+                <button onclick="execQuickCmd('ls -la')" class="px-2.5 py-1 bg-slate-900 hover:bg-cyan-950 text-cyan-400 border border-cyan-900/60 rounded">ls -la</button>
+                <button onclick="execQuickCmd('cat /var/log/syslog.log')" class="px-2.5 py-1 bg-slate-900 hover:bg-cyan-950 text-emerald-400 border border-emerald-900/60 rounded">cat syslog</button>
+                <button onclick="execQuickCmd('hex /bin/cyber_payload.elf')" class="px-2.5 py-1 bg-slate-900 hover:bg-cyan-950 text-amber-300 border border-amber-900/60 rounded">hex payload</button>
+                <button onclick="execQuickCmd('sysinfo')" class="px-2.5 py-1 bg-slate-900 hover:bg-cyan-950 text-cyan-400 border border-cyan-900/60 rounded">sysinfo</button>
+                <button onclick="execQuickCmd('scan')" class="px-2.5 py-1 bg-slate-900 hover:bg-cyan-950 text-cyan-400 border border-cyan-900/60 rounded">net scan</button>
+                <button onclick="execQuickCmd('decrypt /home/milyes/classified.enc')" class="px-2.5 py-1 bg-slate-900 hover:bg-cyan-950 text-rose-400 border border-rose-900/60 rounded">decrypt enc</button>
+                <button onclick="execQuickCmd('clear')" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-zinc-400 border border-slate-700/60 rounded ml-auto">clear</button>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW 2: VFS FILE MANAGER ==================== -->
+        <div id="view-vfs" class="w-full h-full p-3 hidden flex flex-col md:flex-row gap-3 overflow-hidden">
+            <!-- Sidebar: Directory Tree Hierarchy -->
+            <div class="w-full md:w-1/3 lg:w-1/4 bg-[#0a0f1a] border border-cyan-950/70 rounded-lg flex flex-col overflow-hidden">
+                <div class="px-3 py-2 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between text-xs font-semibold text-cyan-400">
+                    <span class="flex items-center space-x-2">
+                        <i data-lucide="folder-tree" class="w-3.5 h-3.5"></i>
+                        <span>DIRECTORY TREE</span>
+                    </span>
+                    <button onclick="renderVfsTree()" class="hover:text-white" title="Refresh tree"><i data-lucide="refresh-cw" class="w-3 h-3"></i></button>
+                </div>
+                <div id="vfs-tree-container" class="p-2 overflow-y-auto flex-1 font-mono text-xs space-y-1"></div>
+            </div>
+
+            <!-- Content Area: File Explorer & File Preview -->
+            <div class="flex-1 bg-[#0a0f1a] border border-cyan-950/70 rounded-lg flex flex-col overflow-hidden">
+                <!-- Header with breadcrumbs & controls -->
+                <div class="px-3 py-2 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between text-xs">
+                    <div class="flex items-center space-x-2 text-zinc-300">
+                        <i data-lucide="folder" class="w-4 h-4 text-amber-400"></i>
+                        <span id="vfs-current-path" class="font-bold font-mono text-cyan-300">/home/milyes</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="createItemDialog('file')" class="px-2 py-1 bg-slate-800 hover:bg-cyan-900 text-cyan-300 rounded border border-cyan-800 text-[11px] flex items-center space-x-1">
+                            <i data-lucide="file-plus" class="w-3 h-3"></i>
+                            <span>+ File</span>
+                        </button>
+                        <button onclick="createItemDialog('dir')" class="px-2 py-1 bg-slate-800 hover:bg-amber-900 text-amber-300 rounded border border-amber-800 text-[11px] flex items-center space-x-1">
+                            <i data-lucide="folder-plus" class="w-3 h-3"></i>
+                            <span>+ Dir</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Files Table List -->
+                <div class="flex-1 overflow-y-auto p-3">
+                    <table class="w-full text-left font-mono text-xs">
+                        <thead>
+                            <tr class="text-zinc-500 border-b border-slate-800 text-[11px]">
+                                <th class="pb-2">NAME</th>
+                                <th class="pb-2">PERMS</th>
+                                <th class="pb-2">SIZE</th>
+                                <th class="pb-2">MODIFIED</th>
+                                <th class="pb-2 text-right">ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vfs-file-list" class="divide-y divide-slate-900">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Quick Preview footer pane -->
+                <div id="vfs-quick-preview-panel" class="h-44 border-t border-slate-800/80 bg-slate-950/90 p-3 flex flex-col hidden">
+                    <div class="flex items-center justify-between text-xs pb-1 mb-2 border-b border-slate-800">
+                        <span class="text-cyan-400 font-bold" id="vfs-preview-filename">File Preview</span>
+                        <div class="flex items-center space-x-2">
+                            <button id="vfs-preview-hex-btn" class="text-amber-400 hover:underline text-[11px]">Open in Hex</button>
+                            <button onclick="closeVfsPreview()" class="text-zinc-500 hover:text-zinc-300"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                        </div>
+                    </div>
+                    <pre id="vfs-preview-content" class="flex-1 overflow-auto text-xs text-zinc-300 font-mono whitespace-pre-wrap select-text"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW 3: HEX & BINARY VIEWER ==================== -->
+        <div id="view-hex" class="w-full h-full p-3 hidden flex flex-col overflow-hidden">
+            <div class="bg-[#090e18] border border-cyan-900/60 rounded-lg flex-1 flex flex-col overflow-hidden">
+                <!-- Hex Header Toolbar -->
+                <div class="px-4 py-2.5 bg-slate-900/90 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div class="flex items-center space-x-3">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="binary" class="w-4 h-4 text-cyan-400"></i>
+                            <span class="font-bold text-slate-200">ACTIVE BUFFER:</span>
+                            <span id="hex-active-filename" class="font-mono text-emerald-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">/bin/cyber_payload.elf</span>
+                        </div>
+                        <span id="hex-filesize-badge" class="text-zinc-500 text-[11px]">[128 BYTES]</span>
+                    </div>
+
+                    <!-- Search / Inspector tools -->
+                    <div class="flex items-center space-x-3">
+                        <div class="flex items-center space-x-1 bg-black/40 px-2 py-1 rounded border border-slate-800">
+                            <i data-lucide="search" class="w-3 h-3 text-zinc-400"></i>
+                            <input type="text" id="hex-search-input" placeholder="Search ASCII / Hex..." oninput="searchHexContent()" class="bg-transparent text-xs text-cyan-300 focus:outline-none w-28 sm:w-44">
+                        </div>
+                        <select id="hex-file-selector" onchange="loadHexFile(this.value)" class="bg-slate-800 text-xs text-zinc-300 border border-slate-700 rounded px-2 py-1 focus:outline-none">
+                            <option value="/bin/cyber_payload.elf">/bin/cyber_payload.elf</option>
+                            <option value="/home/milyes/classified.enc">/home/milyes/classified.enc</option>
+                            <option value="/sys/kernel_dump.dmp">/sys/kernel_dump.dmp</option>
+                            <option value="/var/log/syslog.log">/var/log/syslog.log</option>
+                            <option value="/home/milyes/notes.txt">/home/milyes/notes.txt</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Hex Table Columns Header -->
+                <div class="px-4 py-1.5 bg-[#0d1424] text-[11px] font-mono text-zinc-500 border-b border-slate-800 grid grid-cols-12 gap-2">
+                    <div class="col-span-2 text-cyan-500 font-semibold">OFFSET</div>
+                    <div class="col-span-6 tracking-widest text-slate-400 font-medium hidden sm:block">00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F</div>
